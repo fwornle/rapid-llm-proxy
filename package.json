@@ -19,7 +19,6 @@
   },
   "scripts": {
     "build": "tsc --declaration",
-    "prepare": "npm run build",
     "watch": "tsc --watch",
     "check": "tsc --noEmit",
     "test": "node --experimental-vm-modules node_modules/.bin/jest"
