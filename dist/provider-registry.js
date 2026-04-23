@@ -1,0 +1,246 @@
+/**
+ * Provider Registry
+ *
+ * Auto-registers providers, resolves provider chains for requests,
+ * and handles tier-based routing.
+ */
+import { detectNetworkMode } from './network-detect.js';
+import { GroqProvider } from './providers/groq-provider.js';
+import { OpenAIProvider } from './providers/openai-provider.js';
+import { AnthropicProvider } from './providers/anthropic-provider.js';
+import { GeminiProvider } from './providers/gemini-provider.js';
+import { GitHubModelsProvider } from './providers/github-models-provider.js';
+import { DMRProvider } from './providers/dmr-provider.js';
+import { OllamaProvider } from './providers/ollama-provider.js';
+import { MockProvider } from './providers/mock-provider.js';
+import { ClaudeCodeProvider } from './providers/claude-code-provider.js';
+import { CopilotProvider } from './providers/copilot-provider.js';
+export class ProviderRegistry {
+    providers = new Map();
+    config;
+    networkMode = 'public';
+    constructor(config) {
+        this.config = config;
+    }
+    /**
+     * Create and initialize all providers. Only registers those that are available.
+     */
+    async initializeAll() {
+        // Detect network mode and apply overrides
+        this.networkMode = await detectNetworkMode();
+        if (this.config.networkOverrides?.[this.networkMode]) {
+            const overrides = this.config.networkOverrides[this.networkMode];
+            console.info(`[llm] Network mode: ${this.networkMode} — applying overrides`);
+            if (overrides.provider_priority) {
+                this.config.providerPriority = overrides.provider_priority;
+            }
+            if (overrides.task_provider_priority) {
+                this.config.taskProviderPriority = overrides.task_provider_priority;
+            }
+        }
+        else {
+            console.info(`[llm] Network mode: ${this.networkMode} — no overrides defined`);
+        }
+        // On VPN, external API providers are unreachable — their fetch() calls hang in SYN_SENT
+        // forever, even with timeouts, because Node.js keeps TCP sockets alive after Promise.race
+        // rejects. Only init providers that can work on the current network.
+        const vpnBlockedProviders = new Set(['groq', 'openai', 'anthropic', 'gemini', 'github-models']);
+        const skipOnVpn = this.networkMode === 'vpn';
+        const allProviders = [
+            { name: 'claude-code', instance: new ClaudeCodeProvider(this.config.providers?.['claude-code']) },
+            { name: 'copilot', instance: new CopilotProvider(this.config.providers?.copilot) },
+            { name: 'groq', instance: new GroqProvider(this.config.providers?.groq) },
+            { name: 'openai', instance: new OpenAIProvider(this.config.providers?.openai) },
+            { name: 'anthropic', instance: new AnthropicProvider(this.config.providers?.anthropic) },
+            { name: 'gemini', instance: new GeminiProvider(this.config.providers?.gemini) },
+            { name: 'github-models', instance: new GitHubModelsProvider(this.config.providers?.['github-models']) },
+            { name: 'dmr', instance: new DMRProvider(this.config.providers?.dmr, this.config.dmr) },
+            { name: 'ollama', instance: new OllamaProvider(this.config.providers?.ollama) },
+            { name: 'mock', instance: new MockProvider() },
+        ];
+        const providerInstances = skipOnVpn
+            ? allProviders.filter(p => !vpnBlockedProviders.has(p.name))
+            : allProviders;
+        if (skipOnVpn) {
+            const skipped = allProviders.filter(p => vpnBlockedProviders.has(p.name)).map(p => p.name);
+            console.info(`[llm] VPN detected — skipping unreachable providers: ${skipped.join(', ')}`);
+        }
+        const INIT_TIMEOUT_MS = 10_000;
+        await Promise.allSettled(providerInstances.map(async ({ name, instance }) => {
+            const ac = new AbortController();
+            try {
+                await Promise.race([
+                    instance.initialize({ signal: ac.signal }),
+                    new Promise((_, reject) => setTimeout(() => {
+                        ac.abort();
+                        reject(new Error(`Init timeout after ${INIT_TIMEOUT_MS}ms`));
+                    }, INIT_TIMEOUT_MS))
+                ]);
+                if (instance.isAvailable()) {
+                    this.providers.set(name, instance);
+                    console.info(`[llm] Provider ${name} initialized`);
+                }
+            }
+            catch (error) {
+                ac.abort(); // ensure socket cleanup on any failure
+                console.warn(`[llm] Provider ${name} failed to initialize:`, error.message);
+            }
+        }));
+        // Always register mock provider (it becomes available when mock service is injected)
+        const mockInstance = providerInstances.find(p => p.name === 'mock')?.instance;
+        if (mockInstance) {
+            this.providers.set('mock', mockInstance);
+        }
+        // Log summary of available providers and priority chains
+        const available = Array.from(this.providers.entries())
+            .filter(([_, p]) => p.isAvailable())
+            .map(([name]) => name);
+        const tiers = ['fast', 'standard', 'premium'];
+        const chains = tiers.map(tier => {
+            const priority = this.config.providerPriority?.[tier] || ['groq', 'anthropic', 'openai'];
+            const resolved = priority.filter(p => this.providers.get(p)?.isAvailable());
+            return `${tier}=[${resolved.join('→')}]`;
+        });
+        console.info(`[llm] ${this.providers.size} providers registered: ${Array.from(this.providers.keys()).join(', ')}`);
+        console.info(`[llm] Available: ${available.join(', ')} | Chains: ${chains.join(' ')}`);
+    }
+    /**
+     * Get a specific provider
+     */
+    getProvider(name) {
+        return this.providers.get(name);
+    }
+    /**
+     * Get the mock provider for configuration
+     */
+    getMockProvider() {
+        return this.providers.get('mock');
+    }
+    /**
+     * Get detected network mode (vpn or public)
+     */
+    getNetworkMode() {
+        return this.networkMode;
+    }
+    /**
+     * Get all available provider names
+     */
+    getAvailableProviders() {
+        return Array.from(this.providers.entries())
+            .filter(([_, p]) => p.isAvailable())
+            .map(([name]) => name);
+    }
+    /**
+     * Get local providers (DMR, Ollama)
+     */
+    getLocalProviders() {
+        return Array.from(this.providers.values())
+            .filter(p => p.isLocal && p.isAvailable() && p.name !== 'mock');
+    }
+    /**
+     * Resolve an ordered list of (provider, model) to try for a request
+     */
+    resolveProviderChain(request) {
+        const chain = [];
+        // 1. Check explicit model routing by operationType
+        if (request.operationType && this.config.modelRouting) {
+            const routingSpec = this.config.modelRouting[request.operationType];
+            if (routingSpec) {
+                const [providerName, model] = routingSpec.split('/');
+                const provider = this.providers.get(providerName);
+                if (provider?.isAvailable()) {
+                    chain.push({ provider, model });
+                    return chain;
+                }
+            }
+        }
+        // 2. Determine tier
+        const tier = this.resolveTier(request);
+        // 3. Check task-level provider priority override (e.g., skip slow providers for specific tasks)
+        const taskPriority = request.taskType && this.config.taskProviderPriority?.[request.taskType];
+        // 4. Walk provider priority for that tier (task override takes precedence)
+        const priority = taskPriority || this.config.providerPriority?.[tier] || ['groq', 'anthropic', 'openai'];
+        // Debug: log tier resolution and priority chain
+        if (tier === 'premium') {
+            console.info(`[llm:registry] tier=${tier} priority=[${priority}] reqTier=${request.tier} taskType=${request.taskType} agentId=${request.agentId}`);
+        }
+        for (const providerName of priority) {
+            const provider = this.providers.get(providerName);
+            if (!provider?.isAvailable())
+                continue;
+            const models = provider.getModels();
+            const model = models[tier] || models.standard || Object.values(models)[0];
+            if (model) {
+                chain.push({ provider, model });
+            }
+        }
+        return chain;
+    }
+    /**
+     * Resolve the effective tier for a request
+     */
+    resolveTier(request) {
+        // Explicit tier
+        if (request.tier)
+            return request.tier;
+        // Environment override
+        const envTier = process.env.SEMANTIC_ANALYSIS_TIER?.toLowerCase();
+        if (envTier && ['fast', 'standard', 'premium'].includes(envTier)) {
+            return envTier;
+        }
+        // Task-specific env override
+        if (request.taskType) {
+            const taskEnvKey = `${request.taskType.toUpperCase()}_TIER`;
+            const taskEnvTier = process.env[taskEnvKey]?.toLowerCase();
+            if (taskEnvTier && ['fast', 'standard', 'premium'].includes(taskEnvTier)) {
+                return taskEnvTier;
+            }
+        }
+        // Agent override
+        if (request.agentId && this.config.agentOverrides?.[request.agentId]) {
+            return this.config.agentOverrides[request.agentId];
+        }
+        // Task type lookup
+        if (request.taskType && this.config.taskTiers) {
+            for (const [tier, tasks] of Object.entries(this.config.taskTiers)) {
+                if (tasks.includes(request.taskType)) {
+                    return tier;
+                }
+            }
+        }
+        return 'standard';
+    }
+    /**
+     * Get tier for a task type (public method for consumers)
+     */
+    getTierForTask(taskType) {
+        return this.resolveTier({ messages: [], taskType });
+    }
+    /**
+     * Update provider priority at runtime (called when dashboard settings change).
+     * Converts a flat priority array into per-tier priority maps and optionally
+     * updates taskTiers overrides.
+     */
+    setProviderPriority(flatPriority, taskTiers) {
+        // Apply the flat priority array to ALL tiers so the dashboard order is
+        // respected regardless of which tier a request resolves to.
+        const perTier = {
+            fast: flatPriority,
+            standard: flatPriority,
+            premium: flatPriority,
+        };
+        this.config.providerPriority = perTier;
+        if (taskTiers) {
+            this.config.taskTiers = taskTiers;
+        }
+        // Log the new priority chain for visibility
+        const tiers = ['fast', 'standard', 'premium'];
+        const chains = tiers.map(tier => {
+            const priority = this.config.providerPriority?.[tier] || [];
+            const resolved = priority.filter(p => this.providers.get(p)?.isAvailable());
+            return `${tier}=[${resolved.join('→')}]`;
+        });
+        console.info(`[llm:registry] Provider priority updated: ${chains.join(' ')}`);
+    }
+}
+//# sourceMappingURL=provider-registry.js.map

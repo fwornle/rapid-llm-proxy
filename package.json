@@ -1,0 +1,54 @@
+{
+  "name": "@rapid/llm-proxy",
+  "version": "1.0.0",
+  "description": "Standalone LLM abstraction layer with multi-provider routing, circuit breaking, caching, and HTTP proxy bridge",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./proxy-bridge": {
+      "import": "./proxy-bridge/server.mjs"
+    }
+  },
+  "bin": {
+    "llm-proxy": "./bin/llm-proxy.mjs"
+  },
+  "scripts": {
+    "build": "tsc --declaration",
+    "prepare": "npm run build",
+    "watch": "tsc --watch",
+    "check": "tsc --noEmit",
+    "test": "node --experimental-vm-modules node_modules/.bin/jest"
+  },
+  "optionalDependencies": {
+    "@anthropic-ai/sdk": "^0.57.0",
+    "@google/generative-ai": "^0.24.1",
+    "groq-sdk": "^0.36.0",
+    "openai": "^4.52.0"
+  },
+  "dependencies": {
+    "undici": "^8.1.0",
+    "yaml": "^2.8.2",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.8.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anthropic-ai/rapid-llm-proxy.git"
+  },
+  "files": [
+    "dist/",
+    "src/",
+    "proxy-bridge/",
+    "config/",
+    "bin/"
+  ],
+  "license": "MIT"
+}

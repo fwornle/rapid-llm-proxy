@@ -1,0 +1,15 @@
+#!/usr/bin/env node
+
+/**
+ * CLI entry point for the LLM Proxy Bridge.
+ * Starts an HTTP server that routes LLM requests to configured providers.
+ *
+ * Usage: llm-proxy
+ * Env:   LLM_PROXY_PORT (default: 8089)
+ */
+
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+await import(resolve(__dirname, '..', 'proxy-bridge', 'server.mjs'));

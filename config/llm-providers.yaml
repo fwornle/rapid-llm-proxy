@@ -1,0 +1,248 @@
+# Unified LLM Provider Configuration
+# Merged from model-tiers.yaml + dmr-config.yaml with new providers
+# Version: 1.0
+
+# Available providers and their models per tier
+providers:
+  # Subscription providers (zero cost)
+  claude-code:
+    method: "cli"                       # claude -p --output-format json (Max OAuth)
+    timeout: 120000                     # CLI needs longer timeout (~12s typical)
+    models:
+      fast: "haiku"
+      standard: "sonnet"
+      premium: "opus"
+    quotaTracking:
+      enabled: true
+      softLimitPerHour: 100  # Conservative estimate
+
+  copilot:
+    method: "http"                      # Direct HTTP POST to Copilot API (~2s)
+    timeout: 120000
+    # Auth: reads OAuth token from ~/.local/share/opencode/auth.json
+    # Enterprise: https://copilot-api.${enterpriseUrl}/chat/completions
+    # Public:     https://api.individual.githubcopilot.com/chat/completions
+    models:
+      fast: "claude-haiku-4.5"
+      standard: "claude-sonnet-4.6"    # Updated: 4.6 available via enterprise
+      premium: "claude-opus-4.6"
+    quotaTracking:
+      enabled: true
+      softLimitPerHour: 100
+
+  # API providers (per-token cost)
+  groq:
+    apiKeyEnvVar: GROQ_API_KEY
+    fast: "llama-3.1-8b-instant"        # ~$0.05/M tokens, 750 tok/s
+    standard: "llama-3.3-70b-versatile"  # ~$0.59/M tokens, 275 tok/s
+    premium: "openai/gpt-oss-120b"      # 120B param, available on Groq
+
+  anthropic:
+    apiKeyEnvVar: ANTHROPIC_API_KEY
+    fast: "claude-haiku-4-5"            # $1/$5 per MTok, fastest
+    standard: "claude-sonnet-4-5"       # $3/$15 per MTok, fast + intelligent
+    premium: "claude-opus-4-6"          # $5/$25 per MTok, most intelligent
+
+  openai:
+    apiKeyEnvVar: OPENAI_API_KEY
+    fast: "gpt-4.1-mini"               # affordable small model
+    standard: "gpt-4.1"                # latest standard model
+    premium: "o4-mini"                  # reasoning model
+
+  gemini:
+    apiKeyEnvVar: GOOGLE_API_KEY
+    fast: "gemini-2.5-flash"            # fast, cost-effective
+    standard: "gemini-2.5-flash"        # good balance
+    premium: "gemini-2.5-pro"           # deep reasoning
+
+  github-models:
+    apiKeyEnvVar: GITHUB_TOKEN
+    baseUrl: "https://models.github.ai/inference/v1"
+    fast: "gpt-4.1-mini"
+    standard: "gpt-4.1"
+    premium: "o4-mini"
+
+  # Local proxy provider — routes through llm-cli-proxy on port 12435
+  # Handles network detection, provider failover, and subscription routing automatically
+  proxy:
+    baseUrl: "http://localhost:12435"
+    timeout: 30000
+    models:
+      fast: "auto"
+      standard: "auto"
+      premium: "auto"
+
+# Default provider priority per tier
+# proxy routes through llm-proxy which handles network-adaptive failover internally.
+# Subscription providers next (claude-code Max, copilot Enterprise) — zero cost.
+# Groq as fast fallback when subscription quota exhausted or unavailable.
+provider_priority:
+  fast: ["proxy", "claude-code", "copilot", "groq", "anthropic", "openai", "gemini", "github-models"]
+  standard: ["proxy", "claude-code", "copilot", "groq", "anthropic", "openai", "gemini", "github-models"]
+  premium: ["proxy", "claude-code", "copilot", "groq", "anthropic", "openai", "gemini", "github-models"]
+
+# Task-level provider priority overrides
+# Overrides the tier-based priority for specific tasks that need different routing
+task_provider_priority:
+  semantic_code_analysis: ["proxy", "claude-code", "copilot", "groq", "anthropic", "openai"]
+  ontology_classification: ["proxy", "claude-code", "copilot", "groq", "anthropic", "openai"]
+  observation_generation: ["proxy", "claude-code", "copilot", "groq", "gemini", "openai", "anthropic"]
+  content_analysis: ["proxy", "claude-code", "copilot", "groq", "anthropic", "openai"]
+  # Proxy-forwarded requests: honor the caller's explicit provider preference
+  proxy_copilot: ["copilot", "claude-code", "groq", "anthropic", "openai"]
+  proxy_claude-code: ["claude-code", "copilot", "groq", "anthropic", "openai"]
+
+# Task-to-tier mapping
+task_tiers:
+  # Tier 1: Fast - Simple extraction and parsing
+  fast:
+    - git_file_extraction
+    - commit_message_parsing
+    - file_pattern_matching
+    - basic_classification
+    - documentation_file_scanning
+
+  # Tier 2: Standard - Most semantic analysis
+  standard:
+    - git_history_analysis
+    - vibe_history_analysis
+    - semantic_code_analysis
+    - documentation_linking
+    - web_search_summarization
+    - ontology_classification
+    - content_validation
+    - deduplication_similarity
+    - observation_generation
+
+  # Tier 3: Premium - Deep understanding required
+  premium:
+    - insight_generation
+    - pattern_recognition
+    - quality_assurance_review
+    - deep_code_analysis
+    - entity_significance_scoring
+
+# Agent-level overrides (maps agent_id to tier)
+agent_overrides:
+  insight_generation: premium
+  observation_generation: standard
+  quality_assurance: premium
+  semantic_analysis: standard
+  git_history: standard
+  vibe_history: standard
+  ontology_classification: standard
+  content_validation: standard
+  batch_scheduler: fast
+  batch_checkpoint_manager: fast
+  kg_operators: standard
+
+# Tree-KG Operator-specific tier assignments
+operator_tiers:
+  conv: premium
+  aggr: standard
+  embed: fast
+  dedup: standard
+  pred: premium
+  merge: standard
+
+# Batch workflow task mappings
+batch_task_tiers:
+  plan_batches: fast
+  extract_batch_commits: fast
+  extract_batch_sessions: fast
+  batch_semantic_analysis: premium
+  operator_conv: premium
+  operator_aggr: standard
+  operator_embed: fast
+  operator_dedup: standard
+  operator_pred: premium
+  operator_merge: standard
+  batch_qa: premium
+  save_batch_checkpoint: fast
+  final_persist: fast
+  final_dedup: standard
+  final_validation: standard
+
+# Docker Model Runner (DMR) configuration
+dmr:
+  port: ${DMR_PORT:-12434}
+  host: ${DMR_HOST:-localhost}
+  baseUrl: http://${DMR_HOST:-localhost}:${DMR_PORT:-12434}/engines/v1
+  defaultModel: ai/llama3.2
+  modelOverrides:
+    git_history: ai/llama3.2:3B-Q4_K_M
+    vibe_history: ai/llama3.2:3B-Q4_K_M
+    web_search: ai/llama3.2:3B-Q4_K_M
+    documentation_linker: ai/llama3.2:3B-Q4_K_M
+    semantic_analysis: ai/qwen2.5-coder:7B-Q4_K_M
+    ontology_classification: ai/qwen2.5-coder:7B-Q4_K_M
+    content_validation: ai/qwen2.5-coder:7B-Q4_K_M
+    insight_generation: ai/llama3.2
+    observation_generation: ai/llama3.2
+    quality_assurance: ai/llama3.2
+    kg_operators: ai/qwen2.5-coder:7B-Q4_K_M
+  timeout: 120000
+  maxTokens: 4096
+  temperature: 0.7
+  connection:
+    maxRetries: 3
+    retryDelay: 1000
+    healthCheckInterval: 30000
+
+# Cost tracking thresholds (per workflow run)
+cost_limits:
+  budget_mode: 0.05
+  standard_mode: 0.50
+  quality_mode: 2.00
+
+# Batch-specific cost limits
+batch_cost_limits:
+  max_tokens_per_batch: 500000
+  max_cost_per_batch_usd: 1.00
+  fallback_on_quota: true
+  total_budget_usd: 50.00
+
+# Cache configuration
+cache:
+  maxSize: 1000
+  ttlMs: 3600000  # 1 hour
+
+# Circuit breaker configuration
+circuit_breaker:
+  threshold: 5
+  resetTimeoutMs: 60000  # 1 minute
+
+# Observation Memory (mastra plugin) configuration
+# Default models for observer/reflector agents — fast/cheap since observations are background work
+observation_defaults:
+  model: "google/gemini-2.5-flash"        # Default for observation generation
+  fallback_model: "groq/llama-3.3-70b-versatile"  # Fallback if gemini unavailable
+  provider_priority: ["gemini", "groq", "copilot", "claude-code"]  # Cheapest first
+
+# Network-adaptive provider priority overrides
+# Applied by llm-proxy when VPN is detected
+network_overrides:
+  vpn:
+    # Inside VPN/CN: copilot is free via corporate subscription, claude-code may be unreachable
+    default_provider: "copilot"
+    provider_priority:
+      fast: ["copilot", "groq", "gemini", "anthropic", "openai", "github-models"]
+      standard: ["copilot", "groq", "gemini", "openai", "anthropic", "github-models"]
+      premium: ["copilot", "claude-code", "groq", "gemini", "openai", "anthropic", "github-models"]
+    task_provider_priority:
+      observation_generation: ["copilot", "groq", "gemini", "openai", "anthropic"]
+  public:
+    # Outside VPN: claude-code Max subscription is preferred (zero cost)
+    default_provider: "claude-code"
+    provider_priority:
+      fast: ["claude-code", "copilot", "groq", "gemini", "openai", "anthropic", "github-models"]
+      standard: ["claude-code", "copilot", "groq", "gemini", "openai", "anthropic", "github-models"]
+      premium: ["claude-code", "copilot", "groq", "gemini", "openai", "anthropic", "github-models"]
+    task_provider_priority:
+      observation_generation: ["claude-code", "copilot", "groq", "gemini", "openai", "anthropic"]
+
+# Environment variable overrides
+# Set these to force specific tiers:
+#   SEMANTIC_ANALYSIS_TIER=premium  - All tasks use premium
+#   SEMANTIC_ANALYSIS_PROVIDER=anthropic - Force specific provider
+#   SEMANTIC_ANALYSIS_COST_MODE=budget - Use fast tier everywhere
