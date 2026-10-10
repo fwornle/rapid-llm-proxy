@@ -49,7 +49,13 @@ providers:
 let sandbox; let upstream;
 before(async () => {
   sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'provider-modules-'));
-  upstream = await startFakeUpstream({ dir: path.join(sandbox, 'upstream') });
+  upstream = await startFakeUpstream({
+    dir: path.join(sandbox, 'upstream'),
+    respond: (r) => (r.host === 'api.openai.com' && r.path === '/v1/chat/completions' ? { body: {
+      id: 'c1', model: 'gpt-4o-mini', choices: [{ index: 0, message: { role: 'assistant', content: 'pong' }, finish_reason: 'stop' }],
+      usage: { prompt_tokens: 5, completion_tokens: 1, total_tokens: 6 },
+    } } : null),
+  });
 });
 after(async () => {
   await upstream?.close();
@@ -97,6 +103,14 @@ test('without the module the daemon boots and serves; the provider is just unava
     const health = await (await fetch(`${d.url}/health`)).json();
     assert.equal(health.providers.echo, undefined);
     assert.equal(health.providers.openai.available, true);
+    // The OpenAI-compatible shim names the account that answered, so a forwarder
+    // in front of this proxy (glass's relay) records it instead of "the proxy".
+    const r = await fetch(`${d.url}/v1/chat/completions`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'user', content: 'ping' }] }),
+    });
+    assert.equal(r.status, 200, await r.clone().text());
+    assert.equal(r.headers.get('x-llm-provider'), 'openai');
   } finally {
     await d.stop();
   }

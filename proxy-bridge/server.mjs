@@ -117,7 +117,7 @@ import { resolveRequestTimeout, resolveProviderTimeout } from './request-timeout
 // header for why the turn index counts non-tool-result user messages.
 import { turnIdentity } from './turn-identity.mjs';
 import { canonicalizeModelName } from './model-canonical.mjs';
-import { handleAnthropicMessages } from './anthropic-forward.mjs';
+import { handleAnthropicMessages, ANSWERING_PROVIDER_HEADER } from './anthropic-forward.mjs';
 import { createUsageApi } from './usage-api.mjs';
 // Phase 84-06 (D-05/D-06): the redaction set every preview and raw body goes
 // through before it is written (the SHARED 27-pattern config).
@@ -4355,13 +4355,14 @@ const server = http.createServer(async (req, res) => {
             if (req._shimStream) {
               res.writeHead(200, {
                 'Content-Type': 'text/event-stream',
+                [ANSWERING_PROVIDER_HEADER]: providerName,
                 'Cache-Control': 'no-cache',
                 'Connection': 'keep-alive',
               });
               for (const frame of frames) res.write(`event: ${frame.type}\ndata: ${JSON.stringify(frame)}\n\n`);
               return res.end();
             }
-            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.writeHead(200, { 'Content-Type': 'application/json', [ANSWERING_PROVIDER_HEADER]: providerName });
             return res.end(JSON.stringify(frames.at(-1).response));
           }
           // Phase 70-02: client asked for streaming → emit a minimal SSE stream
@@ -4371,6 +4372,7 @@ const server = http.createServer(async (req, res) => {
           if (req._shimStream) {
             res.writeHead(200, {
               'Content-Type': 'text/event-stream',
+                [ANSWERING_PROVIDER_HEADER]: providerName,
               'Cache-Control': 'no-cache',
               'Connection': 'keep-alive',
             });
@@ -4385,7 +4387,7 @@ const server = http.createServer(async (req, res) => {
             res.write('data: [DONE]\n\n');
             return res.end();
           }
-          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.writeHead(200, { 'Content-Type': 'application/json', [ANSWERING_PROVIDER_HEADER]: providerName });
           // Phase 82-03: buildBufferedChoice sets message.tool_calls +
           // finish_reason 'tool_calls' when result.toolCalls present; otherwise
           // byte-identical to the prior { role, content } + 'stop' envelope.

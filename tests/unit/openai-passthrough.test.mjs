@@ -57,7 +57,9 @@ function respond(req, body, res) {
   }
   // A fresh request id per call: the token DB dedups rows on (user_hash, request id).
   jsonSeq += 1;
-  res.writeHead(200, { 'content-type': 'application/json', 'x-request-id': jsonSeq === 1 ? 'req-json' : `req-json-${jsonSeq}` });
+  // A routing upstream names the account that answered (x-test-answered asks for one).
+  const answered = req.headers['x-test-answered'] ? { 'x-llm-provider': req.headers['x-test-answered'] } : {};
+  res.writeHead(200, { 'content-type': 'application/json', 'x-request-id': jsonSeq === 1 ? 'req-json' : `req-json-${jsonSeq}`, ...answered });
   res.end(JSON.stringify({ id: 'c2', model: 'gpt-4o-mini-2024-07-18', choices: [{ index: 0, message: { role: 'assistant', content: 'pong' } }], usage: CHAT_USAGE }));
 }
 
@@ -197,4 +199,14 @@ test('usage tap: chat SSE keeps the last usage; JSON body; no usage → sawUsage
   const j = createOpenAIUsageTap({ wire: 'responses' });
   j.jsonBody(Buffer.from(JSON.stringify({ model: 'gpt-5.1', usage: { input_tokens: 9, output_tokens: 2 } })));
   assert.deepEqual([j.usage.input, j.usage.output, j.usage.model], [9, 2, 'gpt-5.1']);
+});
+
+test('a routing upstream names the account that answered: the row carries it, not the router label', async () => {
+  const before = rows().length;
+  await (await post('/v1/chat/completions', { model: 'gpt-4o-mini', messages: msgs }, { 'x-test-answered': 'claude-code-max' })).json();
+  await (await post('/v1/chat/completions', { model: 'gpt-4o-mini', messages: msgs }, { 'x-test-answered': 'not a/provider id' })).json();
+  await settle();
+  const [named, junk] = rows().slice(before);
+  assert.equal(named.provider, 'claude-code-max');
+  assert.equal(junk.provider, 'github-copilot', 'a malformed header falls back to the label');
 });
