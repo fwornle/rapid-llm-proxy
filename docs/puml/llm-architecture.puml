@@ -1,0 +1,84 @@
+@startuml llm-architecture
+!theme plain
+skinparam backgroundColor white
+skinparam componentStyle rectangle
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 11
+
+title rapid-llm-proxy — Component Architecture
+
+package "rapid-llm-proxy" {
+  component "LLMService" as svc <<facade>> #E3F2FD {
+    port "generateText()" as gt
+  }
+
+  component "Config Loader" as cfg #FFF3E0
+  component "Provider Registry" as reg #FFF3E0
+  component "Circuit Breaker" as cb #FFEBEE
+  component "Cache Manager" as cache #E8F5E9
+  component "Quota Tracker" as quota #FFF3E0
+  component "Metrics" as metrics #F3E5F5
+
+  svc --> cfg : reads tiers
+  svc --> reg : resolves providers
+  svc --> cb : checks/records
+  svc --> cache : hash lookup
+  svc --> quota : daily limits
+  svc --> metrics : records calls
+}
+
+package "Subscription Providers" #E8EAF6 {
+  component "Copilot\n<<api>>" as cop
+  component "Claude Code\n<<cli>>" as cc
+}
+
+package "API Providers" #E0F2F1 {
+  component "Anthropic" as anth
+  component "OpenAI" as oai
+  component "Groq" as groq
+  component "Gemini" as gem
+  component "GitHub Models" as ghm
+}
+
+package "Local Providers" #FFF8E1 {
+  component "Ollama" as oll
+  component "DMR" as dmr
+}
+
+package "Infrastructure" #ECEFF1 {
+  component "Proxy Provider\n<<bridge>>" as pp
+  component "Proxy Bridge\nserver.mjs" as pb
+}
+
+reg --> cop
+reg --> cc
+reg --> anth
+reg --> oai
+reg --> groq
+reg --> gem
+reg --> ghm
+reg --> oll
+reg --> dmr
+reg --> pp
+
+pp -right-> pb : HTTP POST\n:8089
+pb --> cop : routes to\navailable provider
+pb --> cc
+
+note right of cop
+  Direct HTTP POST
+  OAuth bearer token
+  ~2-5s per call
+end note
+
+note right of cc
+  Spawns CLI process
+  claude --print
+  ~3-8s per call
+end note
+
+note bottom of cfg
+  llm-providers.yaml
+  Tier → Provider mapping
+end note
+@enduml

@@ -208,17 +208,21 @@ export class ClaudeCodeProvider extends BaseProvider {
     const { systemPrompt, userPrompt } = this.extractPrompts(request.messages);
     const timeoutMs = request.timeout || this.config.timeout || 120000;
 
+    // The proxy is a pure completion service — strip MCP, skills, hooks,
+    // auto-memory, CLAUDE.md, and the default system prompt. Measured on a
+    // "say OK" probe: 14.8K → ~130 input tokens with these flags.
     const args: string[] = [
       '-p', userPrompt,
       '--output-format', 'json',
       '--model', model,
-      '--tools', '',          // Disable tools — we just want a completion
-      '--no-session-persistence', // Don't save ingestion sessions
+      '--tools', '',
+      '--no-session-persistence',
+      '--disable-slash-commands',
+      '--strict-mcp-config', '--mcp-config', '{"mcpServers":{}}',
+      '--setting-sources', '',
     ];
 
-    if (systemPrompt) {
-      args.push('--system-prompt', systemPrompt);
-    }
+    args.push('--system-prompt', systemPrompt || 'You are a helpful assistant.');
 
     const startTime = Date.now();
 
@@ -227,6 +231,10 @@ export class ClaudeCodeProvider extends BaseProvider {
         timeout: timeoutMs,
         env: this.buildCleanEnv(),
         maxBuffer: 10 * 1024 * 1024, // 10MB for large responses
+        // Pin cwd to /tmp so Claude Code's project breadcrumb doesn't inherit
+        // the proxy's launchd WorkingDirectory and pollute the status-line's
+        // active-projects list (was showing "RLP" for rapid-llm-proxy).
+        cwd: '/tmp',
       });
 
       if (stderr) {

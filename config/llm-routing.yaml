@@ -1,0 +1,911 @@
+# llm-routing.yaml — WHICH provider and model serves a given piece of work.
+#
+# This file and its sibling llm-fallback.yaml are the ONLY places routing is
+# decided. proxy-bridge/routing-config.mjs reads them; proxy-bridge/server.mjs
+# does what they say. There are no hardcoded provider chains, no per-service
+# defaults buried in scripts, and no heuristics that quietly reorder things.
+# If a call went somewhere surprising, the answer is in these two files —
+# ask the proxy directly:
+#
+#   curl -s 'localhost:12435/api/llm/routing/resolve?job=bg-observation-writer' | jq
+#
+# ── Naming ───────────────────────────────────────────────────────────────────
+# A provider id names the ACCOUNT that gets billed, not the company that owns
+# the model. `claude-code-max` (personal Max subscription) and `anthropic-api`
+# (metered API key) both serve Claude models and are NOT the same thing; the
+# old config collapsed them to "anthropic", which is why the dashboard showed
+# "anthropic 100%" and told you nothing. The id here is what appears in logs,
+# in token_usage.provider, on the dashboard and in the docs — so a model is
+# always referred to as `<provider>/<model>`, e.g. `claude-code-max/claude-opus-5`
+# or `gh-copilot/claude-sonnet-5`.
+
+version: 1
+
+# ── Provider catalogue ───────────────────────────────────────────────────────
+#
+#   account       the billing relationship (free-form label, shown in the UI).
+#   impl          the runtime implementation in server.mjs. This is the ONLY
+#                 place the old internal names survive; nothing else should
+#                 mention `copilot` or `claude-code` as a provider.
+#   fg_transport  set only on the provider that can serve FOREGROUND Claude Code
+#                 traffic. Claude Code speaks the Anthropic wire protocol, which
+#                 the proxy forwards verbatim (`anthropic-passthrough`); it
+#                 cannot currently be translated onto an OpenAI-shaped provider.
+#                 A fg-chat/claude route naming a provider without this key is
+#                 refused with 501 rather than silently forwarded — see
+#                 docs/architecture/llm-routing.md, "Foreground Claude".
+#   capabilities  tools: the provider forwards tools[]/tool_choice AND parses
+#                 tool_calls back. A request carrying tools[] may only land on a
+#                 tools-capable provider (llm-fallback.yaml enforce_capabilities).
+#   models        complexity band -> the model id to send on the wire.
+#   enabled       false = declared but never routed to. Keeps the taxonomy
+#                 complete without pretending something works.
+#
+# The model lists below are what each account VERIFIABLY serves, taken from
+# 30 days of token_usage plus the 2026-08-15 catalogue probe — not from a
+# vendor's marketing page. Notably the proxy's Copilot leg rejects every opus
+# id with `400 The requested model is not supported`, so none is listed here.
+
+providers:
+
+  claude-code-max:
+    account: anthropic-subscription
+    description: Personal Claude Max subscription (OAuth, no per-token cost).
+    impl: claude-code
+    fg_transport: anthropic-passthrough
+    capabilities:
+      # The claude-code CLI is spawned with `--tools ''` and cannot serve tool
+      # calls. Foreground Claude Code sessions are unaffected: they carry their
+      # own tools over the passthrough, which is not this code path.
+      tools: false
+      streaming: true
+    # Everything this account can serve. The band table below must draw from
+    # this list — a band naming a model that is not here fails validation at
+    # boot, which is how a stale id is caught the moment a vendor retires it
+    # rather than on the next call.
+    #
+    # claude-sonnet-4.6 was dropped 2026-09-02, with the same id on gh-copilot.
+    # Unlike there, this is a tidy rather than a measured retirement: nothing on
+    # this account has asked for 4.6 since 2026-08-26, and those 4,004 calls
+    # arrived over the FOREGROUND passthrough, where this list is advisory by
+    # construction — /v1/messages is forwarded verbatim and body.model is never
+    # rewritten, so Claude Code's own picker decides and no entry here can
+    # permit or forbid it. What the list does govern is the band table below,
+    # which never named 4.6. Re-add it if a band should point at it again.
+    available_models:
+      - claude-haiku-4.5
+      - claude-sonnet-5
+      - claude-opus-4.8
+      - claude-opus-5
+    models:
+      small: claude-haiku-4.5
+      medium: claude-sonnet-5
+      high: claude-opus-5
+
+  gh-copilot:
+    account: copilot-subscription
+    description: Corporate GitHub Copilot contract via the enterprise endpoint.
+    impl: copilot
+    capabilities:
+      tools: true
+      streaming: true
+    # NOTE the absence of every opus id. The proxy's Copilot leg rejects them
+    # with `400 The requested model is not supported` — probed 2026-08-15 across
+    # all nine ids opencode declares. The Copilot CLI's OWN BYOK path does serve
+    # opus, but that is a different catalogue reached by a different route; do
+    # not copy ids between the two.
+    # 2026-09-02: claude-sonnet-4.6 was RETIRED upstream and is gone from this
+    # endpoint's catalogue. It served 264 calls on 09-01 (last 15:44Z) and 400s
+    # on every call since. The band table named it for `medium`, so every
+    # medium-band turn — pi at its default thinking level, among others — died
+    # with `The requested model is not available for integrator "opencode"`,
+    # and the error helpfully lists the live catalogue: 4.5 and 5, no 4.6.
+    #
+    # Nothing here can catch that at boot. Validation checks the band table
+    # against `available_models` BELOW, which is our own declaration — when the
+    # real catalogue moves, both sides stay internally consistent and wrong
+    # together. The endpoint is the only authority, and it is only consulted on
+    # a live call. Treat a sudden 400 naming a model as catalogue drift, not
+    # config corruption.
+    #
+    # But do NOT then copy ids out of the list that 400 prints, which was the
+    # obvious next move and is wrong. There are TWO gates and they disagree:
+    # the endpoint advertises claude-sonnet-4.5, and pointing `medium` at it
+    # earns a DIFFERENT 400 — `The requested model is not supported` — from the
+    # proxy's own Copilot leg, the same rejection every opus id gets. Probed
+    # 2026-09-02, and 14 days of token_usage agree: exactly three ids have ever
+    # returned a successful call here — haiku-4.5, the now-dead sonnet-4.6, and
+    # sonnet-5. This list is what WORKS, not what is advertised.
+    #
+    # A CATALOGUE OUTAGE IS NOT A CATALOGUE CHANGE. On 2026-09-17 every Claude id
+    # briefly vanished from /models and every band 400ed at once; they were all
+    # back the next day. Re-probe before editing this list in response to a bad
+    # afternoon — an outage edited into config outlives the outage.
+    #
+    # THE GPT-5.6 FAMILY IS PROBED ON A DIFFERENT ENDPOINT. sol / luna / terra
+    # answer 400 on /chat/completions — `not accessible via the
+    # /chat/completions endpoint`, code `unsupported` — and 200 with tools on
+    # /responses. That is not a broken model, it is the wrong probe: the proxy
+    # already sends them to the right place, `completeCopilotResponses()` on the
+    # `responses_body && /^gpt-5\./` branch. Probing only chat/completions and
+    # concluding "unsupported" is a mistake this list has now made once.
+    #
+    # Probed 2026-09-18, tools on, all HTTP 200:
+    #   /chat/completions  claude-haiku-4.5, claude-sonnet-5, claude-opus-5,
+    #                      claude-opus-4.8, gemini-3.8-flash, gpt-5-mini,
+    #                      gpt-4o, gpt-4o-mini
+    #   /responses         gpt-5.6-sol, gpt-5.6-luna, gpt-5.6-terra
+    available_models:
+      - claude-haiku-4.5
+      - claude-sonnet-5
+      - claude-opus-5
+      - gpt-4o
+      - gpt-4o-mini
+      - gpt-5.6-sol
+      - gpt-5.6-luna
+      - gpt-5.6-terra
+    models:
+      small: claude-haiku-4.5
+      medium: claude-sonnet-5
+      # high is opus-5. Every opus id used to earn `The requested model is not
+      # supported` from this leg, which is why the band sat on sonnet-5 and why
+      # the table above says it collapsed for want of a survivor. That is no
+      # longer true: opus-5 answers 200 with tools, and a high-band call through
+      # the proxy is served by it rather than falling back (verified 2026-09-18,
+      # end to end — the direct-endpoint probe alone would not have shown it,
+      # since the proxy's own leg is the second gate).
+      high: claude-opus-5
+
+  groq:
+    account: groq-api
+    description: Private Groq API key. Fast and cheap; no Claude models.
+    impl: groq
+    capabilities:
+      tools: false
+      streaming: true
+    available_models:
+      - llama-3.1-8b-instant
+      - llama-3.3-70b-versatile
+      - openai/gpt-oss-120b
+    models:
+      small: llama-3.1-8b-instant
+      medium: llama-3.3-70b-versatile
+      high: openai/gpt-oss-120b
+
+  openai:
+    account: openai-api
+    description: Private OpenAI API key.
+    impl: openai
+    capabilities:
+      tools: true
+      streaming: true
+    available_models:
+      - gpt-4o-mini
+      - gpt-4o
+    models:
+      small: gpt-4o-mini
+      medium: gpt-4o
+      high: gpt-4o
+
+  anthropic-api:
+    account: anthropic-api
+    description: >-
+      Private Anthropic API key — metered, billed per token. Distinct from
+      claude-code-max even though both serve Claude models.
+    impl: anthropic
+    capabilities:
+      tools: true
+      streaming: true
+    # claude-sonnet-4.6 dropped 2026-09-02 alongside the other two catalogues.
+    # Unverified against the endpoint rather than confirmed dead: ANTHROPIC_API_KEY
+    # is commented out in .env, so this provider currently has no credential and
+    # /v1/models cannot be probed. It last served 4.6 on 2026-08-08.
+    available_models:
+      - claude-haiku-4.5
+      - claude-sonnet-5
+      - claude-opus-4.8
+      - claude-opus-5
+    models:
+      small: claude-haiku-4.5
+      medium: claude-sonnet-5
+      high: claude-opus-5
+
+  qwen-local:
+    account: on-prem
+    description: >-
+      On-prem Qwen3.8-27B cluster (V100). LAN-only and unmetered: no per-token
+      cost, and the prompt never leaves the corporate network. Moved from node 1 to nodes 2+3 on
+      2026-09-07; the old address still lists models but 503s on generation.
+      Scaling to ~9 parallel instances. This is the provider the
+      semantic_routing block below offloads cheap work to.
+    impl: qwen-local
+    # PER BAND, because this provider's two bands are not the same kind of
+    # model and no single number serves both.
+    #
+    # Measured against node 1 2026-09-03:
+    #
+    #   small  -> dual-fast     37 in / 1131 out, no reasoning        31.0s
+    #   medium -> dual-normal   77 in / 2280 out, thinks first        70.1s
+    #   medium -> dual-normal  4566 in / 2048 out, TRUNCATED         189.0s
+    #
+    # Re-measured against nodes 2+3 2026-09-07, after the
+    # cluster moved. node 1 could NOT be re-measured for comparison: it still
+    # lists models but every generation returns 503, so the rates below are the
+    # new deployment's own, not a delta anyone verified side by side.
+    #
+    #   dual-fast       47 in /  1000 out                 38.1s, 38.0s   26 tok/s
+    #   dual-normal     87 in /  1000 out                 39.7s, 37.0s   26 tok/s
+    #   dual-fast        9 out, warm                       1.1s
+    #   dual-normal   6301 in /   144 out                 20.6s   (~15s prefill)
+    #   dual-normal     87 in /  2400 out                 89.5s
+    #
+    # The headline is NOT "the cluster got faster". Short answers did get much
+    # quicker (1.1s for 9 tokens) and the 4.5K-context case no longer truncates,
+    # which is what makes it FEEL fast — but sustained decode is ~26 tok/s
+    # against the ~36 tok/s node 1's own recorded figures imply. Long answers
+    # cost MORE here, and that is what these ceilings have to clear.
+    #
+    # dual-normal is a reasoning model: it spends completion tokens on
+    # `reasoning_content` before emitting content, so it runs ~2x the tokens and
+    # the cost scales with context.
+    #
+    # A single 30000 was what made medium look dead — 33 consecutive timeouts
+    # that were not failures but calls cut off mid-thought. Raising the single
+    # knob to 75000 instead made small's ceiling 2.5x too loose while STILL not
+    # clearing medium: five foreground pi turns paid 75.0s each. A ceiling only
+    # helps if it clears the work; otherwise it just sets the price of failure.
+    # That dilemma is the whole argument for this field being a map.
+    #
+    # `medium` is declared here even though offload_bands below does not send
+    # anything to it. Those are two different statements — this says what the
+    # model needs if it is called, that says whether it should be. Keeping the
+    # measurement here means re-enabling the band is a one-line decision and not
+    # a re-derivation.
+    timeout_ms:
+      # 40000 was calibrated on node 1, where 1131 tokens took 31.0s — a 9s
+      # margin. At the measured 26 tok/s the SAME answer takes 43.5s, so 40000
+      # had quietly become a ceiling that cuts off a ~1050-token reply mid-word;
+      # 1000 tokens measured 38.1s against it, a margin of 1.9s. 60000 restores
+      # roughly the original headroom at the throughput actually on offer.
+      #
+      # Not raised further, and the reason is the same one qwen-laptop's 20s
+      # gives: the fallback answers in ~5s, so every second spent discovering
+      # that the cluster is wedged is a second worse than not having offloaded.
+      default: 60000
+      # Was 240000, set above a 189.0s run that never finished. Nothing truncates
+      # on this deployment — the worst measured is 89.5s for 2400 out — so the
+      # ceiling no longer has to cover a case that could not complete. 150000
+      # clears that with room for a longer context's prefill (~15s at 6.3K).
+      medium: 150000
+    capabilities:
+      # The endpoint declares toolCalling: true, and the proxy's OpenAI-compatible
+      # leg now genuinely forwards tools[]/tool_choice and reads tool_calls back
+      # (it silently dropped both until 2026-08-28). Declaring `true` before that
+      # fix would have been the same mis-declaration `openai` was carrying: the
+      # capability gate exists to keep tools OFF a provider that would drop them.
+      tools: true
+      streaming: true
+    # The three ids the cluster serves. They map one-to-one onto the bands below,
+    # which is what makes the offload a substitution rather than a re-plan.
+    available_models:
+      - qwen3.8-27b-dual-fast
+      - qwen3.8-27b-dual-normal
+      - qwen3.8-27b-dual-deep
+    models:
+      small: qwen3.8-27b-dual-fast
+      medium: qwen3.8-27b-dual-normal
+      high: qwen3.8-27b-dual-deep
+
+  qwen-laptop:
+    account: on-device
+    description: >-
+      Qwen3.8-27B running on THIS laptop under llama.cpp (Metal, unified
+      memory), served on 127.0.0.1:8081. Same family as the on-prem cluster and
+      the same bargain — no per-token cost, and the prompt never leaves the
+      machine — but reachable on the network the cluster is not: at home, off
+      VPN. It exists so the semantic offload has somewhere to go off-corp, where
+      every `small` call otherwise goes back to a paid account.
+
+      Slower than the cluster by a lot (~3-6 tok/s decode against a V100 rack),
+      which is exactly why it is scoped to the `small` band and nothing else.
+    impl: qwen-laptop
+    # 20s, not the 120s default. This endpoint only ever serves `small`-band work
+    # that was routed here because it was cheap — and its own route provider sits
+    # first in the fallback chain, answering in ~5s. Waiting two minutes to find
+    # out llama.cpp is wedged makes the offload strictly worse than never having
+    # offloaded: on 2026-08-29, 48 calls did exactly that and averaged 92s before
+    # the real provider was tried. Past ~20s, falling back IS the fast path.
+    timeout_ms: 20000
+    capabilities:
+      # llama.cpp's OpenAI-compatible server implements tools[]/tool_calls, and
+      # the shared leg forwards both since 2026-08-28. Declared true on the same
+      # evidence as qwen-local: the capability gate exists to keep tools OFF a
+      # provider that would silently drop them.
+      tools: true
+      streaming: true
+    # ONE id. The laptop serves whatever single GGUF is loaded; there is no
+    # dual-speed variant to pick from, so all three bands would resolve to the
+    # same file. Declaring only `small` keeps the band table honest — a `medium`
+    # here would claim a capability the machine does not have.
+    available_models:
+      - qwen3.8-27b-local
+    models:
+      small: qwen3.8-27b-local
+
+# ── Routes ───────────────────────────────────────────────────────────────────
+#
+# Lookup is three steps, in order. No wildcards, no scoring, no tie-breaks:
+#
+#   1. routes["<job>/<agent>"]   foreground — the agent matters
+#   2. routes["<job>"]           background — it does not
+#   3. defaults[<class>]         class = fg-chat for `fg-*` jobs, else background
+#
+# `job` is `fg-chat` for a coding-agent conversation, or `bg-<service>` for a
+# background cognitive service (the service name is the `process` field the
+# caller sends to /api/complete).
+#
+# `complexity` selects the model from the chosen provider's band table, so a
+# fallback to a different provider automatically gets a model that provider
+# actually serves. `from-caller` means the caller supplies the band per request;
+# if it sends none, defaults[<class>].complexity applies.
+
+routes:
+
+  # ── Foreground: the conversation you are having with a coding agent ─────────
+  #
+  # claude MUST resolve to a provider with fg_transport (today: claude-code-max
+  # only). Pointing it elsewhere is refused loudly at /v1/messages rather than
+  # being silently ignored, which is what the old passthrough did.
+  fg-chat/claude:
+    provider: claude-code-max
+    complexity: high
+
+  # `from-caller`, like opencode and pi beside it — the three agents you reach for
+  # on corporate must not differ in POLICY by which one you happened to launch.
+  # It was pinned `high`, and that one word was the whole difference: a pinned
+  # band can never be `small`, so no copilot turn was ever eligible for the
+  # semantic offload while an identical opencode turn was. Measured over 21 days
+  # of token_usage: copilot produced sonnet rows and nothing else, while opencode
+  # produced 661 haiku rows on the same work.
+  #
+  # HONEST LIMIT, so nobody reads more into this line than it says: the Copilot
+  # CLI has no per-turn effort seam. It cannot set request headers (see
+  # scripts/launch-agent-common.sh, which is why its task binding is a URL PATH),
+  # and it does not send `reasoning_effort`. So in practice this still resolves to
+  # defaults.fg-chat -> high, exactly as the pin did. What changes is that the
+  # ceiling is now the CLI's, not this file's: the day copilot sends an effort
+  # field, it participates, with no config change. Closing it sooner means
+  # teaching the CLI to declare — not adding a content classifier here, which
+  # this file argues against at length under semantic_routing.
+  fg-chat/copilot:
+    provider: gh-copilot
+    complexity: from-caller
+
+  # opencode chooses its own model per call — sonnet for the agentic loop, haiku
+  # for titles and summaries. Pinning one band here would flatten that into a
+  # single model and make every cheap call expensive, so the band comes from the
+  # caller. The PROVIDER is still ours to decide.
+  fg-chat/opencode:
+    provider: gh-copilot
+    complexity: from-caller
+    # OpenCode users may deliberately select Sol while staying on the proxy.
+    # The selection is a HIGH-band profile, not a provider/model soft pin:
+    # classifier downgrades still use the normal medium/small model table and
+    # small remains eligible for semantic offload to Qwen.
+    #
+    # Sol reaches Copilot over /responses, not /chat/completions — the proxy
+    # picks that leg itself (`responses_body && /^gpt-5\./`), so the pin is all
+    # this file needs to say.
+    model_profiles:
+      gpt-5.6-sol:
+        high: gpt-5.6-sol
+
+  # pi (@earendil-works/pi-coding-agent) cycles models within a session — Ctrl+P
+  # over the --models patterns, plus /model mid-session — for the same reason
+  # opencode does: the agentic loop wants a strong model, titles and summaries do
+  # not. Pinning one band here would flatten that into a single model and make
+  # every cheap call expensive, so the band comes from the caller and only the
+  # PROVIDER is ours to decide. `from-caller` degrades gracefully when the caller
+  # sends no complexity (verified: resolves to gh-copilot/claude-sonnet-5).
+  fg-chat/pi:
+    provider: gh-copilot
+    complexity: from-caller
+
+  # ── Background: wave-analysis (the knowledge-graph build) ───────────────────
+  bg-wave-analysis-wave1: { provider: gh-copilot, complexity: medium }
+  bg-wave-analysis-wave1-enrich: { provider: gh-copilot, complexity: medium }
+  bg-wave-analysis-wave1-l1emit: { provider: gh-copilot, complexity: medium }
+  bg-wave-analysis-wave2: { provider: gh-copilot, complexity: medium }
+  bg-wave-analysis-wave2-subcomponent: { provider: gh-copilot, complexity: medium }
+  bg-wave-analysis-wave3: { provider: gh-copilot, complexity: medium }
+  bg-wave-analysis-wave3-detail-extract: { provider: gh-copilot, complexity: medium }
+  bg-wave-analysis-wave3-ontology-classify: { provider: gh-copilot, complexity: small }
+  bg-wave-analysis-wave4-insight: { provider: gh-copilot, complexity: medium }
+  bg-wave-analysis-wave4-diagram: { provider: gh-copilot, complexity: medium }
+  bg-wave-analysis-wave4-diagram-repair: { provider: gh-copilot, complexity: small }
+  bg-wave-analysis-wave4-pattern-extract: { provider: gh-copilot, complexity: medium }
+  bg-wave-analysis-wave4-docs: { provider: gh-copilot, complexity: medium }
+  bg-wave-analysis-sem-analyze: { provider: gh-copilot, complexity: small }
+  bg-wave-analysis-sem-analyzer: { provider: gh-copilot, complexity: small }
+  bg-wave-analysis-staleness: { provider: gh-copilot, complexity: small }
+
+  # ── Background: always-on services ─────────────────────────────────────────
+  # These run continuously, so they stay on the cheap band deliberately.
+  bg-health-coordinator: { provider: gh-copilot, complexity: small }
+  bg-observation-writer: { provider: gh-copilot, complexity: small }
+  bg-observation-resolution: { provider: gh-copilot, complexity: small }
+  bg-kb-relevance-judge: { provider: gh-copilot, complexity: small }
+  bg-constraint-monitor: { provider: gh-copilot, complexity: small }
+
+  # ── Background: consolidation ──────────────────────────────────────────────
+  bg-consolidator-digest: { provider: gh-copilot, complexity: medium }
+  bg-consolidator-insight: { provider: gh-copilot, complexity: medium }
+  # `small`, not medium. This is a closed-set classifier: it is handed a catalogue
+  # of entity names and asked which ones an Insight discusses, and its answer is a
+  # JSON array of those names — measured output over 2181 calls is 5.2 tokens, and
+  # 94% of them are the literal `[]`. Nothing about picking from a supplied list
+  # needs a frontier model. It ran on sonnet-4.6 until 2026-08-29 purely because
+  # this line said `medium`; MentionsClassifier.js has claimed "routes to
+  # claude-haiku" since it was written, via a `taskType` field the proxy has never
+  # read. The band is the only thing that decides, so it says haiku here.
+  #
+  # `offload: false` despite being the cheapest band on the board, because the
+  # band describes how hard the WORK is and the offload cares how big the PROMPT
+  # is. Every call re-sends the ~23K-token entity catalogue. On gh-copilot that
+  # is a cache hit (measured: 23,264 of 23.8K read from cache), which is the only
+  # reason this service is affordable at all; a local box shares no cache with
+  # this proxy and must prefill all 23K every time. Measured 2026-08-30: 6 of 6
+  # offloaded calls hit qwen-local's 30s timeout TWICE and averaged 48s before
+  # gh-copilot — which then answered from cache — was even tried. Raising
+  # timeout_ms would only buy a longer stall: the fallback is faster AND cheaper
+  # than the target, so there is nothing here for the offload to win.
+  bg-consolidator-mentions: { provider: gh-copilot, complexity: small, offload: false }
+  bg-consolidator-compaction: { provider: gh-copilot, complexity: small }
+  bg-consolidator-resynthesize: { provider: gh-copilot, complexity: small }
+  # Roll-up synthesis: one call per parent, summarising its children into a
+  # description. Pinned rather than left to fall through to
+  # `defaults.background`, where BOTH small and medium resolve to the same
+  # claude-code-max/claude-sonnet-5 and the band is therefore inert — a pass
+  # that touches every parent in the graph should not be able to escalate
+  # silently. `small` matches its neighbours above: like compaction and
+  # resynthesize this rewrites existing text rather than reasoning about
+  # source. Measured budget: 338 calls / 3.3M tokens for a full pass, ~22
+  # calls/day once incremental.
+  bg-consolidator-rollup: { provider: gh-copilot, complexity: small }
+
+  # ── Background: measurement + benchmarking ─────────────────────────────────
+  # The kgbench judge must be a strong model AND must actually receive the model
+  # it asks for: a judge silently downgraded to haiku produces scores that are
+  # not comparable with a sonnet-graded column. See the `high` band above.
+  bg-kgbench-judge: { provider: gh-copilot, complexity: high, offload: false }
+  bg-auto-measure-class: { provider: gh-copilot, complexity: small }
+  bg-auto-measure-summary: { provider: gh-copilot, complexity: small }
+  bg-auto-measure-title: { provider: gh-copilot, complexity: small }
+  bg-backfill: { provider: gh-copilot, complexity: small }
+  bg-codegraph: { provider: gh-copilot, complexity: small }
+
+  # kb-ab coinage probe: "would the model write this fact unprompted, with no repo and no KB?"
+  # A fact the model already knows cannot distinguish the experiment's arms, so the answer decides
+  # whether that fact is graded at all -- which makes the MODEL THAT ANSWERS part of the
+  # measurement, exactly as for bg-kgbench-judge above.
+  #
+  # Pinned to gh-copilot at the `medium` band for two measured reasons. The pin is to the
+  # BAND, not to an id: it read claude-sonnet-4.6 until that model was retired upstream on
+  # 2026-09-02, and now resolves to claude-sonnet-5. Reason 1 travels with the band; reason 2
+  # is what still makes it gh-copilot and not the other account.
+  #   1. It is the band the experiment's CELLS run, so coinage is measured on the same weights
+  #      that have to produce the fact. (Until 2026-09-02 this also could not have been
+  #      claude-code-max, because 4.6 sat in that account's available_models without being in
+  #      its band table. That is no longer the distinguishing fact -- both accounts now serve
+  #      sonnet-5 at medium -- so the choice rests on reason 2 alone.)
+  #   2. Its envelope can be trusted. The claude-code-max leg spawns the Claude CLI, and on a
+  #      long generation that path returns nonsense accounting -- measured 2026-08-24: 18 output
+  #      tokens reported against 5,660 characters of content. A probe whose whole job is to read
+  #      `model` off the response cannot run on a transport that misreports the fields beside it.
+  #      The gh-copilot HTTP leg reported 2,484 tokens for 8,527 characters on the same prompt.
+  bg-kb-ab-coinage: { provider: gh-copilot, complexity: medium, offload: false }
+
+  # The kb-ab sampler's fact-candidate GENERATOR. Named for availability, not capability -- it
+  # writes fact candidates from an insight, which any mid-tier model does adequately.
+  #
+  # WHY IT IS ROUTED AT ALL. Unrouted, it took defaults.background (claude-code-max first) and a
+  # session-limit exhaustion took the whole draw down with it: measured 2026-08-24, 46 of 50 tasks
+  # died on `500 Claude CLI error: You've hit your session limit`. The declared fallback did NOT
+  # save it -- a quota 500 propagated to the caller instead of failing over -- and the sampler has
+  # no retry around the generator call, so one account's daily limit voided a 50-task draw while
+  # gh-copilot sat healthy and answered every coinage probe in the same run.
+  #
+  # Putting the generator on the same account as coinage means one exhausted subscription can no
+  # longer silently halve the experiment's input. The cells themselves still spawn the Claude CLI
+  # and remain exposed; that is a scheduling constraint, not a routing one.
+  bg-kb-ab-sampler: { provider: gh-copilot, complexity: medium, offload: false }
+
+# ── Semantic routing ─────────────────────────────────────────────────────────
+#
+# The offload policy. When enabled, any call whose RESOLVED complexity band is in
+# `offload_bands` is served by `local_provider` instead of the provider its route
+# names — and that route's own provider is inserted as the first fallback, so a
+# cluster that is down, restarting, or still loading a model degrades straight
+# back to the routing that was in force before the offload.
+#
+# WHY THE BAND, AND NOT A CLASSIFIER. Every route above already declares how hard
+# its work is, and `from-caller` already lets an agent declare it per call. A
+# classifier reading prompt content would add a decision step to the hot path and
+# make "why did this call go there?" unanswerable from this file — which is the
+# one property the whole two-file design exists to protect. The band is the
+# semantic signal; it is just already written down.
+#
+# WHAT IS NOT OFFLOADED, even on an eligible band:
+#   • a route carrying `offload: false` (see bg-kgbench-judge and the two kb-ab
+#     routes above — where the model that answers IS the measurement)
+#   • a route whose provider serves a foreground transport the local provider
+#     cannot. `fg-chat/claude` arrives on the Anthropic wire protocol at
+#     /v1/messages, a verbatim passthrough that answers 501 for any provider
+#     without `fg_transport`; moving it would break every Claude Code turn rather
+#     than make one cheaper. Enforced in routing-config.mjs, not by omission here.
+#   • anything at all, when `require_network` does not match the live sensor.
+#
+# `require_network: corporate` is not belt-and-braces. The cluster is on 10/8 and
+# answers only on the corporate network, so at home the offload would produce one
+# guaranteed-failed attempt per call before falling back. The proxy ALSO re-probes
+# the endpoint every 60s and drops it from every chain while unreachable — this
+# guard is the cheaper, declarative half of the same fact.
+#
+# Turn it off and routing is exactly what it was before this block existed; that
+# equivalence is asserted in tests/unit/routing-config.test.mjs.
+# ── Prompt complexity classifier ─────────────────────────────────────────────
+#
+# WHO decides the band when the caller's own declaration is not informative.
+#
+# `from-caller` only works when the caller declares something USEFUL, and two of
+# the three agents that use it do not. Measured over one session on 2026-08-30:
+#
+#   fg-chat/pi        medium x11   pi's thinking slider sits at medium, so every
+#                                  turn was ineligible for the offload below
+#                                  (offload_bands: [small]) — including
+#                                  "how many r's in strawberry", which ran on
+#                                  gh-copilot/claude-sonnet-4.6
+#   fg-chat/opencode  high   x22   declared nothing at all, so every turn fell
+#                                  to defaults.fg-chat
+#
+# Neither number is about the requests. They are about the sliders. This block
+# lets something look at the request instead.
+#
+# ── The three properties that make this safe ────────────────────────────────
+#   DOWNGRADE-ONLY  a verdict may LOWER a band, never raise one. The caller's
+#                   declaration stays a ceiling, so the worst case is the
+#                   behaviour we already had, and nothing can be made cheaper
+#                   than the agent asked for by accident.
+#   ATTRIBUTED      a lowered band is reported as complexitySource 'classifier',
+#                   never blended into 'caller'. Visible on the row and in
+#                   /api/llm/routing/resolve.
+#   REPRODUCIBLE    that endpoint takes `classified=true`, so any decision can
+#                   still be reproduced from this file alone, with no prompt.
+#
+# ── What it costs ───────────────────────────────────────────────────────────
+# Only `from-caller` routes are ever classified — background services choose
+# their bands deliberately and are not second-guessed. A structural gate runs
+# first and is free: a turn that already carries tool results is never
+# classified, which on measured traffic is 63% of them (6,024 of 16,362 captured
+# turns carry no tool message). Then a cheap veto skips anything with code,
+# paths, multi-step phrasing or sheer length. Only what survives all three costs
+# a call — measured at ~900ms-1.3s against llama.cpp with `max_tokens: 3`.
+#
+#   enabled  false by default. Declaring the block changes nothing.
+#   impl     WHO OWNS THE RUBRIC — not how the bytes travel. Both working impls
+#            speak HTTP to an OpenAI-ish endpoint, so naming one of them `http`
+#            named the thing they have in common; it was renamed 2026-08-31 and
+#            the old spelling still parses with a warning.
+#              none       the free stages only. NOT a disabled state: with
+#                         `enabled: true` it runs the structural gate and the
+#                         veto and downgrades nothing, which is how you learn
+#                         how much traffic is eligible before asking any model.
+#              local-llm  THE PROXY judges — it holds the rubric, picks the
+#                         model, asks an OpenAI-compatible endpoint. Fewest
+#                         moving parts; changing the rubric means restarting
+#                         the component every LLM call goes through.
+#              service    SOMETHING ELSE judges. The proxy sends only the text
+#                         and takes the word back (POST /classify {text} ->
+#                         {band}); rubric, model and what `small` means all live
+#                         at the other end, on their own release schedule.
+#   bands    which bands the classifier is ALLOWED to emit. `[small]` means the
+#            only move it can make is onto the cheap band, which is the only move
+#            the offload below can act on anyway.
+#
+# Endpoint and credentials come from env (CLASSIFIER_BASE_URL, CLASSIFIER_MODEL,
+# CLASSIFIER_API_KEY), not from here — the same policy-vs-secrets split every
+# provider above follows.
+#
+# Precision on `small` is the ONLY metric that gates this: downgrade-only means a
+# wrong `medium`/`high` verdict changes nothing, and only a wrong `small` spends
+# a real turn on a weaker model.
+#
+# ON since 2026-08-31. scripts/eval-prompt-classifier.mjs against the labelled
+# corpus and the live service: precision 0.913, recall 1.000, median 900ms, over
+# 41 of 48 prompts (6 vetoed by the free stage, 1 endpoint error). Threshold is
+# 0.90 — both false positives are one-line code generation ("write a regex that
+# matches semver", "a bash one-liner that finds files over 100MB"), which the
+# haiku-class model they land on handles, and which are as likely to be strict
+# labelling as bad judgement. Re-run the script before changing any of this; it
+# exits 2 rather than 0 if it could not classify enough of the corpus to have an
+# opinion.
+#
+# `impl: service` — the judge is coding/scripts/prompt-classifier-service.mjs (
+# com.coding.prompt-classifier on 127.0.0.1:12437), not this proxy dialling a
+# model. Which model judges and what the rubric says are installation policy;
+# they should not require restarting the component every LLM call goes through.
+# Endpoint comes from CLASSIFIER_BASE_URL, per the split every provider follows.
+classifier:
+  enabled: true
+  impl: service
+  # 6000ms. Was 2000, which was right for node 1 and cannot be met at all on
+  # nodes 2+3.
+  #
+  # THE SHAPE OF THE DISTRIBUTION IS WHY THIS NUMBER AND NOT A BIGGER ONE.
+  # Measured 2026-09-08 against the live judge, at the 4000-char ceiling
+  # prompt-classifier-service.mjs truncates to (CLASSIFIER_MAX_TEXT), while the
+  # cluster carried its normal background offload traffic:
+  #
+  #   3171, 4666, 4668, 4673, 4679, 4683, 4692, 4699, 4708, 11364   (ms, n=10)
+  #
+  # It is BIMODAL. Nine of ten sit within 40ms of each other at ~4.7s; the tenth
+  # is 11.4s. There is nothing in between, so every budget from 5000 to 11000
+  # clears exactly the same nine calls — a larger number buys no extra verdicts
+  # at all, it only makes the rare failure more expensive. Covering the second
+  # mode needs 12000, which is an absurd thing to put in front of a foreground
+  # turn to decide whether to save a few cents.
+  #
+  # 6000 rather than 5000 because the main mode drifts: a real turn was observed
+  # at 5340ms while background work was in flight, which 5000 would have thrown
+  # away for the sake of 340ms. 6000 leaves ~1.3s over the mode and still cannot
+  # reach the 11.4s class, which is the right place for the line.
+  #
+  # Short prompts are cheaper but NOT free — ~2.1s is a floor at any size
+  # (measured at 80 bytes), so this is not headroom over a warm 1.3s verdict the
+  # way the old comment described. That machine is gone.
+  #
+  # The old comment argued a wider timeout "would tax every genuine timeout on
+  # every turn forever", and it was right in principle. It had stopped applying:
+  # at 2000 the tax was already total. The judge had answered 0 of 18 requests
+  # in its entire life and three foreground turns driven through the proxy
+  # produced three `The operation was aborted due to timeout` while the judge
+  # itself answered all three correctly. Paying nothing for nothing is not
+  # thrift.
+  timeout_ms: 6000
+  # Nominally 20000, but the judge truncates to 4000 chars, so this bounds what
+  # is SENT rather than what is read. Left as-is: lowering it would not speed
+  # anything up (the truncation already caps prefill) and would only move the
+  # cut to a second place, which is how two limits drift apart.
+  max_request_bytes: 20000
+  # Which bands a verdict may TAKE. `small` alone until 2026-09-02, which meant a
+  # `medium` verdict was discarded as "not in allowed bands" and the declared
+  # band stood — so an opencode turn defaulting to `high` could never be lowered
+  # to `medium` even when that was plainly the right answer.
+  #
+  # NOTE what widening this changes about the RISK. While `small` was the only
+  # emittable band and the only offloadable one, the eval's stated gate —
+  # precision on `small` is the only metric that matters, because a wrong
+  # `medium`/`high` verdict changes nothing — was exactly true. It is not any
+  # more: a wrong `medium` now moves real work to the cluster. Precision on
+  # `medium` is gated too, in scripts/eval-prompt-classifier.mjs.
+  bands:
+    - small
+    - medium
+
+semantic_routing:
+  enabled: true
+  # `small` was the whole list until 2026-09-02: the high-volume always-on
+  # services (observation writing, ontology classification, staleness, titles,
+  # summaries) that already declare themselves cheap.
+  #
+  # `medium` was added for the case that motivated the classifier in the first
+  # place and that the classifier alone could not fix. A from-scratch script or
+  # single-file function is `medium` by this rubric's own definition and by its
+  # labelled corpus — so on 2026-09-02 "create a python class that classifies a
+  # number" ran on gh-copilot/claude-sonnet-5 with the correct band, correctly
+  # refused. The cluster serves a `medium` tier and is free; there was no reason
+  # for that work to be on a metered account beyond this list.
+  #
+  # This is a GLOBAL ceiling. A target that cannot take a band listed here says
+  # so itself with its own `offload_bands` — see qwen-laptop below, which serves
+  # no medium model and would be slower than the account it displaced.
+  offload_bands:
+    - small
+    - medium
+  # WHERE the offload goes, per network. First match wins; an entry with no
+  # require_network would match everywhere. Two entries claiming one network is
+  # refused at boot, so the order below is a statement, not a tie-break.
+  #
+  # There are two local endpoints because there is no single machine that is
+  # always reachable. The cluster is on 10/8 and answers only on corporate; the
+  # laptop server answers wherever the laptop is, which off-VPN is the only place
+  # anything local can be. With one target and one guard — the shape this block
+  # had until 2026-08-28 — every `small` call at home went back to a paid
+  # account, silently, because "the local provider is unreachable" and "there is
+  # no local provider here" produced the same non-event.
+  #
+  # Each target carries two independent switches, because "where could this go",
+  # "should it go there" and "what may it take" are three different statements:
+  #
+  #   enabled:  false by default. Declaring a target says where an offload COULD
+  #             go; enabling it says send work there.
+  #   scope:    [fg, bg] by default. WHICH KIND of work this endpoint may serve —
+  #             foreground conversation, background service, or both. A property
+  #             of the box, not of the policy: how much latency it adds is what
+  #             decides what it may serve.
+  #
+  # `offload_bands` says how HARD a call may be to qualify; `scope` says WHO may
+  # be waiting on it. The band alone could not express "cheap, but only when
+  # someone is watching", which is why the laptop target could only be all-or-
+  # nothing before this field existed. They are separate statements because reachability — the only
+  # thing the probe in server.mjs can establish — does not imply usability. See
+  # qwen-laptop below for what that cost when the two were conflated.
+  targets:
+    - provider: qwen-local
+      require_network: corporate
+      # The on-prem V100 cluster: fast, free, and the actual point of the
+      # semantic router. On as designed.
+      enabled: true
+      # BOTH kinds of work. A V100 rack is quick enough that a `small` foreground
+      # turn served here is not a worse conversation, and cheap `small` turns are
+      # exactly what you want off a metered contract while on corporate — so
+      # restricting this one to background would give away most of the benefit.
+      scope:
+        - fg
+        - bg
+      # PER-BAND SCOPE. `small` for anyone; `medium` only where nobody is
+      # waiting.
+      #
+      # The two bands land on different models and the difference is not
+      # marginal: `small` -> qwen3.8-27b-dual-fast, measured 1.4s avg over 354
+      # calls; `medium` -> qwen3.8-27b-dual-normal, 28.4s avg. Against
+      # gh-copilot's 3.3s for the same foreground work, medium here is a 9x
+      # regression for a person waiting on a turn — that is what a single
+      # `offload_bands: [small, medium]` bought on 2026-09-02, and why this was
+      # narrowed to [small] the same afternoon.
+      #
+      # But [small] alone leaves the cluster at 1.6% of the machine's calls (70
+      # of 4,386), while the work it is BEST suited to — background services with
+      # no one waiting, on a free unmetered box inside the network — kept going
+      # to a metered account. Both of those are policy failures; the target-level
+      # `scope` below could only choose which one to have.
+      #
+      # `medium: [bg]` is the actual answer. Same band, same box, opposite
+      # verdict depending on who is waiting.
+      #
+      # Widening medium to [fg, bg] named two preconditions. The second one — a
+      # medium-sized timeout_ms, because 30000 sat right on dual-normal's
+      # measured 28.4s — was NOT met when the widening shipped on 2026-09-02,
+      # and the result was exactly what this paragraph predicted: every fg pi
+      # turn timed out at 30s and fell through to gh-copilot, paying for the
+      # slow path and the fast one both. `timeout_ms` is 75000 now, so a medium
+      # turn served here actually completes.
+      #
+      # The FIRST precondition is still open: scripts/eval-prompt-classifier.mjs
+      # has never run against a real model on corporate since the global list
+      # grew `medium`. That gates whether the classifier's medium verdicts are
+      # trustworthy, not whether the endpoint can serve them — a wrong band here
+      # now moves real foreground work, so it is worth closing.
+      offload_bands:
+        small: [fg, bg]
+        # medium is DELIBERATELY ABSENT, for neither of the two reasons you
+        # might guess. `qwen3.8-27b-dual-normal` is served, and it works.
+        #
+        # It is a REASONING model. dual-fast emits content directly; dual-normal
+        # spends completion tokens on `reasoning_content` first. Measured on this
+        # cluster 2026-09-03, same prompt, both models:
+        #
+        #   dual-fast    37 in / 1131 out, no reasoning      31.0s
+        #   dual-normal  77 in / 2280 out, 2316 chars think  70.1s
+        #   dual-normal  ~6000 in (the consolidator average)  >120s, did not finish
+        #
+        # ~33 tok/s on a V100, and roughly twice the tokens because it thinks
+        # first. So the cost scales with context, and neither consumer of this
+        # band fits:
+        #
+        #   fg-chat/*                70s+ against gh-copilot's ~3s. Nobody wants
+        #                            that trade on an interactive turn.
+        #   bg-consolidator-insight  6.1K input on average, 152K at the tail.
+        #                            Timed out 24/24 at a 300s ceiling on
+        #                            2026-09-02. Nobody is waiting, but a call
+        #                            that never lands is not free capacity.
+        #
+        # Two earlier readings of this were wrong and are recorded so the same
+        # mistakes are not made a third time:
+        #
+        #  1. "slow but works" — from 7 successes averaging ~28s. Seven samples
+        #     is not a latency, and those were the short prompts. Used to justify
+        #     widening medium to [fg, bg], then raising timeout_ms to 75000.
+        #     Both made foreground worse; five consecutive pi turns paid 75.0s.
+        #  2. "does not answer" — from 0 successes in 33 attempts. It answers in
+        #     under 2s to a trivial prompt. The attempts were not failing, they
+        #     were being cut off mid-reasoning by a ceiling shorter than the
+        #     model's own thinking time. `output_tokens` HIDES this: reasoning
+        #     tokens are not counted there, so a row showing 78 output tokens and
+        #     a 75s timeout looks impossible and is not.
+        #
+        # To restore for BACKGROUND only, the bar is a measurement, not a probe:
+        # time dual-normal against a REAL consolidator-sized prompt (~6K input)
+        # and set a ceiling above what you observe. `timeout_ms` is per-provider,
+        # so that ceiling would also apply to small — which is the point at which
+        # per-band timeout_ms stops being optional. Listing the model in
+        # /v1/models proves nothing; it was listed throughout the outage above.
+    - provider: qwen-laptop
+      require_network: public
+      # SMALL ONLY, whatever the global list grows to.
+      #
+      # Two independent reasons, and either alone would be enough. It declares
+      # exactly one model (`qwen3.8-27b-local`, on the `small` rung), so a medium
+      # call here would silently resolve to the small model — the mismatch this
+      # file refuses at boot everywhere else. And it generates at a fraction of
+      # the speed of the account it displaces (below), so harder work is where
+      # the latency stops being a trade and becomes a straight loss.
+      #
+      # Without this line, adding `medium` to the global list above would have
+      # failed boot on the missing model — turning "let the cluster take medium"
+      # into "delete the laptop target", which is not the same decision at all.
+      offload_bands:
+        - small
+      # llama.cpp on this laptop. OFF, and a last resort when on.
+      #
+      # It probes green in milliseconds (loopback) and then generates at a
+      # fraction of the speed of the account it displaces. Measured 2026-08-29
+      # over the 66 calls it served: mean 47s vs gh-copilot's 5.4s, worst case
+      # 932s for a 59-token observation-writer call. The 48 calls that gave up
+      # and fell back paid 92s BEFORE the real provider was tried. Because
+      # offload_bands is global, that hit bg-observation-writer and
+      # bg-auto-measure-title — the highest-volume services there are — and a 50s
+      # call sits uncomfortably close to the ETM's 60s isProcessing watchdog.
+      #
+      # Turn it on for a session where cost beats latency, then turn it back off.
+      enabled: false
+      # FOREGROUND ONLY, and this is the half of the 2026-08-29 damage that
+      # `enabled: false` alone did not address. Every one of the calls that hurt
+      # was BACKGROUND: bg-observation-writer and bg-auto-measure-title are the
+      # highest-volume services on the machine, they run unattended, and a 50s
+      # answer there sits uncomfortably close to the ETM's 60s isProcessing
+      # watchdog. Switching the target off stopped that by stopping everything;
+      # this line is what makes turning it back ON safe.
+      #
+      # Foreground is the case that survives the latency. A `small` foreground
+      # turn is a title, a summary, a one-line question — you are sitting there,
+      # you can see it working, and you chose to trade speed for an unmetered
+      # answer when you enabled this. Nothing chose that on behalf of the
+      # background services.
+      #
+      # Worth knowing before you enable it: off-VPN the foreground agent is
+      # `coding --claude`, and fg-chat/claude can NEVER be offloaded — it arrives
+      # on the Anthropic wire protocol at /v1/messages, and no local provider
+      # carries fg_transport. So with claude this target is reachable only by a
+      # `coding --opencode` / `--pi` / `--copilot` session run off-VPN.
+      scope:
+        - fg
+
+# Anything not named above — an ad-hoc probe, a new service, a one-off script —
+# lands here.
+#
+# Background names gh-copilot, which is what every `bg-*` route above already
+# names. It used to name claude-code-max on the reasoning that the personal Max
+# subscription has no metered cost — true, but it made the fallthrough the ONE
+# background path that billed a personal account, and it applied precisely to
+# the work nobody declared: a new service, a probe, a script written in a hurry.
+# Unattended background work should not be the thing that quietly spends the
+# subscription a human is also using to type.
+#
+# Measured 2026-09-23 before the change: 1,589 calls in 24h, 1 of them a
+# fallback. Every named bg route resolved to gh-copilot at step 2; only
+# `defaults.background` reached for Max, and only twice. So this is the
+# declaration catching up with the behaviour, not a redirection of live traffic.
+#
+# Max is not out of the picture — it is the first fallback in gh-copilot's chain
+# (llm-fallback.yaml, guarded `public` because the claude-code path is
+# firewall-blocked inside CN), so a Copilot 402 or a quota refusal still lands
+# there before groq. The band stays `medium`, which gh-copilot serves as
+# claude-sonnet-5.
+defaults:
+  fg-chat:
+    provider: gh-copilot
+    complexity: high
+  background:
+    provider: gh-copilot
+    complexity: medium

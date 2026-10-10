@@ -21,6 +21,14 @@ export type {
   DMRConfig,
 } from './types.js';
 
+// Measurement span (TELEM-02) — single getActiveMeasurement reader + start/stop lifecycle
+// + resolveLiveTaskId (TELEM-03) — the proxy write-path task_id resolution rule.
+export {
+  getActiveMeasurement, startMeasurement, stopMeasurement, resolveMeasurementPaths, sanitizeTaskId,
+  resolveLiveTaskId,
+} from './measurement-span.js';
+export type { SpanRecord } from './measurement-span.js';
+
 // Provider registry
 export { ProviderRegistry } from './provider-registry.js';
 

@@ -17,8 +17,8 @@ export class AnthropicProvider extends BaseProvider {
 
   constructor(config: Partial<ProviderConfig> = {}) {
     super({
-      models: { fast: 'claude-haiku-4-5', standard: 'claude-sonnet-4-5', premium: 'claude-opus-4-6' },
-      defaultModel: 'claude-sonnet-4-5',
+      models: { fast: 'claude-haiku-4-5', standard: 'claude-sonnet-5', premium: 'claude-opus-5' },
+      defaultModel: 'claude-sonnet-5',
       timeout: 30000,
       ...config,
     });

@@ -1,0 +1,3848 @@
+[
+  {
+    "files": {
+      "llm-proxy/context-breakdown.json": {
+        "cache_breakpoint_indices": [],
+        "cache_breakpoints": 0,
+        "cacheable_prefix_bytes": 122,
+        "capturedAt": "<ts>",
+        "categories": [
+          {
+            "bytes": 55,
+            "detail": {
+              "block_count": 1,
+              "blocks": [
+                {
+                  "cached": false,
+                  "chars": 30,
+                  "preview": "You are a test. <SECRET_REDACTED>"
+                }
+              ],
+              "cached": false,
+              "hash": "3f4992de85bbfe46",
+              "preview": "You are a test. <SECRET_REDACTED>",
+              "section_headers": [],
+              "sections": [
+                {
+                  "header": "(intro)",
+                  "text": "You are a test. <SECRET_REDACTED>"
+                }
+              ],
+              "total_bytes": 30,
+              "total_chars": 30
+            },
+            "key": "sys",
+            "label": "System Instructions"
+          },
+          {
+            "bytes": 67,
+            "detail": {
+              "count": 2,
+              "items": [
+                {
+                  "bytes": 34,
+                  "description": "",
+                  "input_schema_keys": [],
+                  "name": "Agent"
+                },
+                {
+                  "bytes": 33,
+                  "description": "",
+                  "input_schema_keys": [],
+                  "name": "Read"
+                }
+              ]
+            },
+            "key": "tools",
+            "label": "Tool Descriptions"
+          },
+          {
+            "bytes": 0,
+            "detail": {
+              "occurrences": 0,
+              "text": null
+            },
+            "key": "know",
+            "label": "Retrieved Knowledge"
+          },
+          {
+            "bytes": 0,
+            "detail": {
+              "count": 0,
+              "items": []
+            },
+            "key": "hist",
+            "label": "Conversation History"
+          },
+          {
+            "bytes": 0,
+            "detail": {
+              "count": 0,
+              "items": []
+            },
+            "key": "tout",
+            "label": "Tool Outputs"
+          },
+          {
+            "bytes": 29,
+            "detail": {
+              "count": 1,
+              "items": [
+                {
+                  "bytes": 29,
+                  "preview": "ping",
+                  "role": "user"
+                }
+              ]
+            },
+            "key": "user",
+            "label": "User Input"
+          }
+        ],
+        "est_tokens": 38,
+        "fresh_input_bytes": 29,
+        "knowledge_cadence": "per-prompt (UserPromptSubmit hook — once per user submission, then cached in history)",
+        "knowledge_occurrences": 0,
+        "knowledge_text": null,
+        "message_count": 1,
+        "model": "claude-sonnet-5",
+        "task_id": "task-hdr",
+        "tool_count": 2,
+        "total_bytes": 151
+      },
+      "llm-proxy/context-breakdown/task-hdr.json": {
+        "cache_breakpoint_indices": [],
+        "cache_breakpoints": 0,
+        "cacheable_prefix_bytes": 122,
+        "capturedAt": "<ts>",
+        "categories": [
+          {
+            "bytes": 55,
+            "detail": {
+              "block_count": 1,
+              "blocks": [
+                {
+                  "cached": false,
+                  "chars": 30,
+                  "preview": "You are a test. <SECRET_REDACTED>"
+                }
+              ],
+              "cached": false,
+              "hash": "3f4992de85bbfe46",
+              "preview": "You are a test. <SECRET_REDACTED>",
+              "section_headers": [],
+              "sections": [
+                {
+                  "header": "(intro)",
+                  "text": "You are a test. <SECRET_REDACTED>"
+                }
+              ],
+              "total_bytes": 30,
+              "total_chars": 30
+            },
+            "key": "sys",
+            "label": "System Instructions"
+          },
+          {
+            "bytes": 67,
+            "detail": {
+              "count": 2,
+              "items": [
+                {
+                  "bytes": 34,
+                  "description": "",
+                  "input_schema_keys": [],
+                  "name": "Agent"
+                },
+                {
+                  "bytes": 33,
+                  "description": "",
+                  "input_schema_keys": [],
+                  "name": "Read"
+                }
+              ]
+            },
+            "key": "tools",
+            "label": "Tool Descriptions"
+          },
+          {
+            "bytes": 0,
+            "detail": {
+              "occurrences": 0,
+              "text": null
+            },
+            "key": "know",
+            "label": "Retrieved Knowledge"
+          },
+          {
+            "bytes": 0,
+            "detail": {
+              "count": 0,
+              "items": []
+            },
+            "key": "hist",
+            "label": "Conversation History"
+          },
+          {
+            "bytes": 0,
+            "detail": {
+              "count": 0,
+              "items": []
+            },
+            "key": "tout",
+            "label": "Tool Outputs"
+          },
+          {
+            "bytes": 29,
+            "detail": {
+              "count": 1,
+              "items": [
+                {
+                  "bytes": 29,
+                  "preview": "ping",
+                  "role": "user"
+                }
+              ]
+            },
+            "key": "user",
+            "label": "User Input"
+          }
+        ],
+        "est_tokens": 38,
+        "fresh_input_bytes": 29,
+        "knowledge_cadence": "per-prompt (UserPromptSubmit hook — once per user submission, then cached in history)",
+        "knowledge_occurrences": 0,
+        "knowledge_text": null,
+        "message_count": 1,
+        "model": "claude-sonnet-5",
+        "task_id": "task-hdr",
+        "tool_count": 2,
+        "total_bytes": 151
+      },
+      "measurements/task-hdr/context-turns.jsonl": [
+        {
+          "agent": "claude",
+          "cache_breakpoints": [],
+          "categories": [
+            {
+              "bytes": 55,
+              "detail": {
+                "block_count": 1,
+                "blocks": [
+                  {
+                    "cached": false,
+                    "chars": 30,
+                    "preview": "You are a test. <SECRET_REDACTED>"
+                  }
+                ],
+                "cached": true,
+                "hash": "3f4992de85bbfe46",
+                "preview": "You are a test. <SECRET_REDACTED>",
+                "section_headers": [],
+                "sections": [
+                  {
+                    "header": "(intro)",
+                    "text": "You are a test. <SECRET_REDACTED>"
+                  }
+                ],
+                "total_bytes": 30,
+                "total_chars": 30
+              },
+              "key": "sys",
+              "label": "System Instructions"
+            },
+            {
+              "bytes": 67,
+              "detail": {
+                "count": 2,
+                "items": [
+                  {
+                    "bytes": 34,
+                    "description": "",
+                    "input_schema_keys": [],
+                    "name": "Agent"
+                  },
+                  {
+                    "bytes": 33,
+                    "description": "",
+                    "input_schema_keys": [],
+                    "name": "Read"
+                  }
+                ]
+              },
+              "key": "tools",
+              "label": "Tool Descriptions"
+            },
+            {
+              "bytes": 0,
+              "detail": {
+                "occurrences": 0,
+                "text": null
+              },
+              "key": "know",
+              "label": "Retrieved Knowledge"
+            },
+            {
+              "bytes": 0,
+              "detail": {
+                "count": 0,
+                "items": []
+              },
+              "key": "hist",
+              "label": "Conversation History"
+            },
+            {
+              "bytes": 0,
+              "detail": {
+                "count": 0,
+                "items": []
+              },
+              "key": "tout",
+              "label": "Tool Outputs"
+            },
+            {
+              "bytes": 29,
+              "detail": {
+                "count": 1,
+                "items": [
+                  {
+                    "bytes": 29,
+                    "preview": "ping",
+                    "role": "user"
+                  }
+                ]
+              },
+              "key": "user",
+              "label": "User Input"
+            }
+          ],
+          "messages": [
+            {
+              "bytes": 31,
+              "i": 0,
+              "preview": "ping",
+              "role": "user",
+              "tool": null
+            }
+          ],
+          "model": "claude-sonnet-5",
+          "observation_ref": null,
+          "request_id": "req_1",
+          "task_id": "task-hdr",
+          "ts": "<ts>",
+          "usage": {
+            "cache_read": 300,
+            "cache_write": 40,
+            "input": 12,
+            "output": 9
+          },
+          "wire": "anthropic"
+        }
+      ]
+    },
+    "response": {
+      "body": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1\",\"model\":\"claude-sonnet-5\",\"usage\":{\"input_tokens\":12,\"output_tokens\":1,\"cache_read_input_tokens\":300,\"cache_creation_input_tokens\":40}}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"pong sk-test-leaked\"}}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":9}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
+      "status": 200
+    },
+    "rows": [
+      {
+        "_rowid": 1,
+        "agent": "claude",
+        "attempt_trail": "",
+        "band_source": "route fg-chat/claude",
+        "cache_read_tokens": 300,
+        "cache_write_tokens": 40,
+        "chain_position": 0,
+        "conversation_key": "7151a8ae6105",
+        "granularity_tier": "per-turn",
+        "id": 1,
+        "input_tokens": 12,
+        "latency_ms": "<volatile>",
+        "model": "claude-sonnet-5",
+        "model_raw": "claude-sonnet-5",
+        "offloaded_from": "",
+        "output_tokens": 9,
+        "overhead_ms": null,
+        "parent_call_id": "",
+        "process": "token-adapter-claude",
+        "project": "glass",
+        "prompt_preview": "ping",
+        "provider": "claude-code-max",
+        "reasoning_tokens": 0,
+        "route_band": "high",
+        "route_key": "fg-chat/claude",
+        "route_step": 1,
+        "routing_source": "live",
+        "subscription": "max-oauth-passthrough",
+        "task_id": "task-hdr",
+        "timestamp": "<volatile>",
+        "tokens_estimated": 0,
+        "tool_call_id": "req_1",
+        "total_tokens": 21,
+        "turn_index": 1,
+        "user_hash": "cladpt"
+      }
+    ],
+    "scenario": "messages sse, x-task-id header, main session, project",
+    "upstream": [
+      {
+        "body": {
+          "max_tokens": 64,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "ping",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "claude-sonnet-5",
+          "stream": true,
+          "system": [
+            {
+              "text": "You are a test. sk-test-system",
+              "type": "text"
+            }
+          ],
+          "tools": [
+            {
+              "input_schema": {},
+              "name": "Agent"
+            },
+            {
+              "input_schema": {},
+              "name": "Read"
+            }
+          ]
+        },
+        "headers": {
+          "accept-encoding": "identity",
+          "content-type": "application/json",
+          "x-api-key": "sk-test-client",
+          "x-project": "glass",
+          "x-task-id": "task-hdr"
+        },
+        "host": "api.anthropic.com",
+        "method": "POST",
+        "path": "/v1/messages"
+      }
+    ]
+  },
+  {
+    "files": {},
+    "response": {
+      "body": {
+        "cache_breakpoint_indices": [],
+        "cache_breakpoints": 0,
+        "cacheable_prefix_bytes": 122,
+        "capturedAt": "<ts>",
+        "categories": [
+          {
+            "bytes": 55,
+            "detail": {
+              "block_count": 1,
+              "blocks": [
+                {
+                  "cached": false,
+                  "chars": 30,
+                  "preview": "You are a test. <SECRET_REDACTED>"
+                }
+              ],
+              "cached": false,
+              "hash": "3f4992de85bbfe46",
+              "preview": "You are a test. <SECRET_REDACTED>",
+              "section_headers": [],
+              "sections": [
+                {
+                  "header": "(intro)",
+                  "text": "You are a test. <SECRET_REDACTED>"
+                }
+              ],
+              "total_bytes": 30,
+              "total_chars": 30
+            },
+            "key": "sys",
+            "label": "System Instructions"
+          },
+          {
+            "bytes": 67,
+            "detail": {
+              "count": 2,
+              "items": [
+                {
+                  "bytes": 34,
+                  "description": "",
+                  "input_schema_keys": [],
+                  "name": "Agent"
+                },
+                {
+                  "bytes": 33,
+                  "description": "",
+                  "input_schema_keys": [],
+                  "name": "Read"
+                }
+              ]
+            },
+            "key": "tools",
+            "label": "Tool Descriptions"
+          },
+          {
+            "bytes": 0,
+            "detail": {
+              "occurrences": 0,
+              "text": null
+            },
+            "key": "know",
+            "label": "Retrieved Knowledge"
+          },
+          {
+            "bytes": 0,
+            "detail": {
+              "count": 0,
+              "items": []
+            },
+            "key": "hist",
+            "label": "Conversation History"
+          },
+          {
+            "bytes": 0,
+            "detail": {
+              "count": 0,
+              "items": []
+            },
+            "key": "tout",
+            "label": "Tool Outputs"
+          },
+          {
+            "bytes": 29,
+            "detail": {
+              "count": 1,
+              "items": [
+                {
+                  "bytes": 29,
+                  "preview": "ping",
+                  "role": "user"
+                }
+              ]
+            },
+            "key": "user",
+            "label": "User Input"
+          }
+        ],
+        "est_tokens": 38,
+        "fresh_input_bytes": 29,
+        "knowledge_cadence": "per-prompt (UserPromptSubmit hook — once per user submission, then cached in history)",
+        "knowledge_occurrences": 0,
+        "knowledge_text": null,
+        "message_count": 1,
+        "model": "claude-sonnet-5",
+        "task_id": "task-hdr",
+        "tool_count": 2,
+        "total_bytes": 151
+      },
+      "status": 200
+    },
+    "rows": [],
+    "scenario": "read: live-latest context breakdown",
+    "upstream": []
+  },
+  {
+    "files": {
+      "llm-proxy/context-breakdown/task-pi.json": {
+        "cache_breakpoint_indices": [],
+        "cache_breakpoints": 0,
+        "cacheable_prefix_bytes": 88,
+        "capturedAt": "<ts>",
+        "categories": [
+          {
+            "bytes": 55,
+            "detail": {
+              "block_count": 1,
+              "blocks": [
+                {
+                  "cached": false,
+                  "chars": 30,
+                  "preview": "You are a test. <SECRET_REDACTED>"
+                }
+              ],
+              "cached": true,
+              "hash": "3f4992de85bbfe46",
+              "preview": "You are a test. <SECRET_REDACTED>",
+              "section_headers": [],
+              "sections": [
+                {
+                  "header": "(intro)",
+                  "text": "You are a test. <SECRET_REDACTED>"
+                }
+              ],
+              "total_bytes": 30,
+              "total_chars": 30
+            },
+            "key": "sys",
+            "label": "System Instructions"
+          },
+          {
+            "bytes": 33,
+            "detail": {
+              "count": 1,
+              "items": [
+                {
+                  "bytes": 33,
+                  "description": "",
+                  "input_schema_keys": [],
+                  "name": "Read"
+                }
+              ]
+            },
+            "key": "tools",
+            "label": "Tool Descriptions"
+          },
+          {
+            "bytes": 0,
+            "detail": {
+              "occurrences": 0,
+              "text": null
+            },
+            "key": "know",
+            "label": "Retrieved Knowledge"
+          },
+          {
+            "bytes": 0,
+            "detail": {
+              "count": 0,
+              "items": []
+            },
+            "key": "hist",
+            "label": "Conversation History"
+          },
+          {
+            "bytes": 0,
+            "detail": {
+              "count": 0,
+              "items": []
+            },
+            "key": "tout",
+            "label": "Tool Outputs"
+          },
+          {
+            "bytes": 29,
+            "detail": {
+              "count": 1,
+              "items": [
+                {
+                  "bytes": 29,
+                  "preview": "ping",
+                  "role": "user"
+                }
+              ]
+            },
+            "key": "user",
+            "label": "User Input"
+          }
+        ],
+        "est_tokens": 29,
+        "fresh_input_bytes": 29,
+        "knowledge_cadence": "per-prompt (UserPromptSubmit hook — once per user submission, then cached in history)",
+        "knowledge_occurrences": 0,
+        "knowledge_text": null,
+        "message_count": 1,
+        "model": "claude-sonnet-5",
+        "task_id": "task-pi",
+        "tool_count": 1,
+        "total_bytes": 117
+      },
+      "measurements/task-pi/context-turns.jsonl": [
+        {
+          "agent": "pi",
+          "cache_breakpoints": [],
+          "categories": [
+            {
+              "bytes": 55,
+              "detail": {
+                "block_count": 1,
+                "blocks": [
+                  {
+                    "cached": false,
+                    "chars": 30,
+                    "preview": "You are a test. <SECRET_REDACTED>"
+                  }
+                ],
+                "cached": true,
+                "hash": "3f4992de85bbfe46",
+                "preview": "You are a test. <SECRET_REDACTED>",
+                "section_headers": [],
+                "sections": [
+                  {
+                    "header": "(intro)",
+                    "text": "You are a test. <SECRET_REDACTED>"
+                  }
+                ],
+                "total_bytes": 30,
+                "total_chars": 30
+              },
+              "key": "sys",
+              "label": "System Instructions"
+            },
+            {
+              "bytes": 33,
+              "detail": {
+                "count": 1,
+                "items": [
+                  {
+                    "bytes": 33,
+                    "description": "",
+                    "input_schema_keys": [],
+                    "name": "Read"
+                  }
+                ]
+              },
+              "key": "tools",
+              "label": "Tool Descriptions"
+            },
+            {
+              "bytes": 0,
+              "detail": {
+                "occurrences": 0,
+                "text": null
+              },
+              "key": "know",
+              "label": "Retrieved Knowledge"
+            },
+            {
+              "bytes": 0,
+              "detail": {
+                "count": 0,
+                "items": []
+              },
+              "key": "hist",
+              "label": "Conversation History"
+            },
+            {
+              "bytes": 0,
+              "detail": {
+                "count": 0,
+                "items": []
+              },
+              "key": "tout",
+              "label": "Tool Outputs"
+            },
+            {
+              "bytes": 29,
+              "detail": {
+                "count": 1,
+                "items": [
+                  {
+                    "bytes": 29,
+                    "preview": "ping",
+                    "role": "user"
+                  }
+                ]
+              },
+              "key": "user",
+              "label": "User Input"
+            }
+          ],
+          "messages": [
+            {
+              "bytes": 31,
+              "i": 0,
+              "preview": "ping",
+              "role": "user",
+              "tool": null
+            }
+          ],
+          "model": "claude-sonnet-5",
+          "observation_ref": null,
+          "request_id": "req_2",
+          "task_id": "task-pi",
+          "ts": "<ts>",
+          "usage": {
+            "cache_read": 0,
+            "cache_write": 13,
+            "input": 7,
+            "output": 3
+          },
+          "wire": "anthropic"
+        }
+      ]
+    },
+    "response": {
+      "body": {
+        "content": [
+          {
+            "text": "pong",
+            "type": "text"
+          }
+        ],
+        "id": "msg_2",
+        "model": "claude-sonnet-5",
+        "type": "message",
+        "usage": {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 2,
+            "ephemeral_5m_input_tokens": 11
+          },
+          "cache_read_input_tokens": 0,
+          "input_tokens": 7,
+          "output_tokens": 3
+        }
+      },
+      "status": 200
+    },
+    "rows": [
+      {
+        "_rowid": 2,
+        "agent": "pi",
+        "attempt_trail": "",
+        "band_source": "route fg-chat/pi",
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 13,
+        "chain_position": 0,
+        "conversation_key": "b7ba95d9ad83",
+        "granularity_tier": "per-turn",
+        "id": 1,
+        "input_tokens": 7,
+        "latency_ms": "<volatile>",
+        "model": "claude-sonnet-5",
+        "model_raw": "claude-sonnet-5",
+        "offloaded_from": "",
+        "output_tokens": 3,
+        "overhead_ms": null,
+        "parent_call_id": "",
+        "process": "token-adapter-pi",
+        "project": "",
+        "prompt_preview": "ping",
+        "provider": "claude-code-max",
+        "reasoning_tokens": 0,
+        "route_band": "high",
+        "route_key": "fg-chat/pi",
+        "route_step": 1,
+        "routing_source": "live",
+        "subscription": "max-oauth-passthrough",
+        "task_id": "task-pi",
+        "timestamp": "<volatile>",
+        "tokens_estimated": 0,
+        "tool_call_id": "req_2",
+        "total_tokens": 10,
+        "turn_index": 1,
+        "user_hash": "piadpt"
+      }
+    ],
+    "scenario": "messages json, x-agent pi, subagent toolset",
+    "upstream": [
+      {
+        "body": {
+          "max_tokens": 64,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "ping",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "claude-sonnet-5",
+          "system": [
+            {
+              "text": "You are a test. sk-test-system",
+              "type": "text"
+            }
+          ],
+          "tools": [
+            {
+              "input_schema": {},
+              "name": "Read"
+            }
+          ]
+        },
+        "headers": {
+          "accept-encoding": "identity",
+          "content-type": "application/json",
+          "x-agent": "pi",
+          "x-api-key": "sk-test-client",
+          "x-task-id": "task-pi"
+        },
+        "host": "api.anthropic.com",
+        "method": "POST",
+        "path": "/v1/messages"
+      }
+    ]
+  },
+  {
+    "files": {
+      "llm-proxy/context-breakdown/span-claude.json": {
+        "cache_breakpoint_indices": [],
+        "cache_breakpoints": 0,
+        "cacheable_prefix_bytes": 122,
+        "capturedAt": "<ts>",
+        "categories": [
+          {
+            "bytes": 55,
+            "detail": {
+              "block_count": 1,
+              "blocks": [
+                {
+                  "cached": false,
+                  "chars": 30,
+                  "preview": "You are a test. <SECRET_REDACTED>"
+                }
+              ],
+              "cached": true,
+              "hash": "3f4992de85bbfe46",
+              "preview": "You are a test. <SECRET_REDACTED>",
+              "section_headers": [],
+              "sections": [
+                {
+                  "header": "(intro)",
+                  "text": "You are a test. <SECRET_REDACTED>"
+                }
+              ],
+              "total_bytes": 30,
+              "total_chars": 30
+            },
+            "key": "sys",
+            "label": "System Instructions"
+          },
+          {
+            "bytes": 67,
+            "detail": {
+              "count": 2,
+              "items": [
+                {
+                  "bytes": 34,
+                  "description": "",
+                  "input_schema_keys": [],
+                  "name": "Agent"
+                },
+                {
+                  "bytes": 33,
+                  "description": "",
+                  "input_schema_keys": [],
+                  "name": "Read"
+                }
+              ]
+            },
+            "key": "tools",
+            "label": "Tool Descriptions"
+          },
+          {
+            "bytes": 0,
+            "detail": {
+              "occurrences": 0,
+              "text": null
+            },
+            "key": "know",
+            "label": "Retrieved Knowledge"
+          },
+          {
+            "bytes": 0,
+            "detail": {
+              "count": 0,
+              "items": []
+            },
+            "key": "hist",
+            "label": "Conversation History"
+          },
+          {
+            "bytes": 0,
+            "detail": {
+              "count": 0,
+              "items": []
+            },
+            "key": "tout",
+            "label": "Tool Outputs"
+          },
+          {
+            "bytes": 29,
+            "detail": {
+              "count": 1,
+              "items": [
+                {
+                  "bytes": 29,
+                  "preview": "ping",
+                  "role": "user"
+                }
+              ]
+            },
+            "key": "user",
+            "label": "User Input"
+          }
+        ],
+        "est_tokens": 38,
+        "fresh_input_bytes": 29,
+        "knowledge_cadence": "per-prompt (UserPromptSubmit hook — once per user submission, then cached in history)",
+        "knowledge_occurrences": 0,
+        "knowledge_text": null,
+        "message_count": 1,
+        "model": "claude-sonnet-5",
+        "task_id": "span-claude",
+        "tool_count": 2,
+        "total_bytes": 151
+      },
+      "measurements/span-claude/context-turns.jsonl": [
+        {
+          "agent": "claude",
+          "cache_breakpoints": [],
+          "categories": [
+            {
+              "bytes": 55,
+              "detail": {
+                "block_count": 1,
+                "blocks": [
+                  {
+                    "cached": false,
+                    "chars": 30,
+                    "preview": "You are a test. <SECRET_REDACTED>"
+                  }
+                ],
+                "cached": true,
+                "hash": "3f4992de85bbfe46",
+                "preview": "You are a test. <SECRET_REDACTED>",
+                "section_headers": [],
+                "sections": [
+                  {
+                    "header": "(intro)",
+                    "text": "You are a test. <SECRET_REDACTED>"
+                  }
+                ],
+                "total_bytes": 30,
+                "total_chars": 30
+              },
+              "key": "sys",
+              "label": "System Instructions"
+            },
+            {
+              "bytes": 67,
+              "detail": {
+                "count": 2,
+                "items": [
+                  {
+                    "bytes": 34,
+                    "description": "",
+                    "input_schema_keys": [],
+                    "name": "Agent"
+                  },
+                  {
+                    "bytes": 33,
+                    "description": "",
+                    "input_schema_keys": [],
+                    "name": "Read"
+                  }
+                ]
+              },
+              "key": "tools",
+              "label": "Tool Descriptions"
+            },
+            {
+              "bytes": 0,
+              "detail": {
+                "occurrences": 0,
+                "text": null
+              },
+              "key": "know",
+              "label": "Retrieved Knowledge"
+            },
+            {
+              "bytes": 0,
+              "detail": {
+                "count": 0,
+                "items": []
+              },
+              "key": "hist",
+              "label": "Conversation History"
+            },
+            {
+              "bytes": 0,
+              "detail": {
+                "count": 0,
+                "items": []
+              },
+              "key": "tout",
+              "label": "Tool Outputs"
+            },
+            {
+              "bytes": 29,
+              "detail": {
+                "count": 1,
+                "items": [
+                  {
+                    "bytes": 29,
+                    "preview": "ping",
+                    "role": "user"
+                  }
+                ]
+              },
+              "key": "user",
+              "label": "User Input"
+            }
+          ],
+          "messages": [
+            {
+              "bytes": 31,
+              "i": 0,
+              "preview": "ping",
+              "role": "user",
+              "tool": null
+            }
+          ],
+          "model": "claude-sonnet-5",
+          "observation_ref": null,
+          "request_id": "req_3",
+          "task_id": "span-claude",
+          "ts": "<ts>",
+          "usage": {
+            "cache_read": 300,
+            "cache_write": 40,
+            "input": 12,
+            "output": 9
+          },
+          "wire": "anthropic"
+        }
+      ]
+    },
+    "response": {
+      "body": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1\",\"model\":\"claude-sonnet-5\",\"usage\":{\"input_tokens\":12,\"output_tokens\":1,\"cache_read_input_tokens\":300,\"cache_creation_input_tokens\":40}}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"pong sk-test-leaked\"}}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":9}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
+      "status": 200
+    },
+    "rows": [
+      {
+        "_rowid": 3,
+        "agent": "claude",
+        "attempt_trail": "",
+        "band_source": "route fg-chat/claude",
+        "cache_read_tokens": 300,
+        "cache_write_tokens": 40,
+        "chain_position": 0,
+        "conversation_key": "7151a8ae6105",
+        "granularity_tier": "per-turn",
+        "id": 2,
+        "input_tokens": 12,
+        "latency_ms": "<volatile>",
+        "model": "claude-sonnet-5",
+        "model_raw": "claude-sonnet-5",
+        "offloaded_from": "",
+        "output_tokens": 9,
+        "overhead_ms": null,
+        "parent_call_id": "",
+        "process": "token-adapter-claude",
+        "project": "",
+        "prompt_preview": "ping",
+        "provider": "claude-code-max",
+        "reasoning_tokens": 0,
+        "route_band": "high",
+        "route_key": "fg-chat/claude",
+        "route_step": 1,
+        "routing_source": "live",
+        "subscription": "max-oauth-passthrough",
+        "task_id": "span-claude",
+        "timestamp": "<volatile>",
+        "tokens_estimated": 0,
+        "tool_call_id": "req_3",
+        "total_tokens": 21,
+        "turn_index": 1,
+        "user_hash": "cladpt"
+      }
+    ],
+    "scenario": "messages sse, no header, per-agent span with raw-body capture",
+    "upstream": [
+      {
+        "body": {
+          "max_tokens": 64,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "ping",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "claude-sonnet-5",
+          "stream": true,
+          "system": [
+            {
+              "text": "You are a test. sk-test-system",
+              "type": "text"
+            }
+          ],
+          "tools": [
+            {
+              "input_schema": {},
+              "name": "Agent"
+            },
+            {
+              "input_schema": {},
+              "name": "Read"
+            }
+          ]
+        },
+        "headers": {
+          "accept-encoding": "identity",
+          "content-type": "application/json",
+          "x-api-key": "sk-test-client"
+        },
+        "host": "api.anthropic.com",
+        "method": "POST",
+        "path": "/v1/messages"
+      }
+    ]
+  },
+  {
+    "files": {},
+    "response": {
+      "body": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1\",\"model\":\"claude-sonnet-5\",\"usage\":{\"input_tokens\":12,\"output_tokens\":1,\"cache_read_input_tokens\":300,\"cache_creation_input_tokens\":40}}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"pong sk-test-leaked\"}}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":9}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
+      "status": 200
+    },
+    "rows": [
+      {
+        "_rowid": 4,
+        "agent": "claude",
+        "attempt_trail": "",
+        "band_source": "route fg-chat/claude",
+        "cache_read_tokens": 300,
+        "cache_write_tokens": 40,
+        "chain_position": 0,
+        "conversation_key": "7151a8ae6105",
+        "granularity_tier": "per-turn",
+        "id": 3,
+        "input_tokens": 12,
+        "latency_ms": "<volatile>",
+        "model": "claude-sonnet-5",
+        "model_raw": "claude-sonnet-5",
+        "offloaded_from": "",
+        "output_tokens": 9,
+        "overhead_ms": null,
+        "parent_call_id": "",
+        "process": "token-adapter-claude",
+        "project": "",
+        "prompt_preview": "ping",
+        "provider": "claude-code-max",
+        "reasoning_tokens": 0,
+        "route_band": "high",
+        "route_key": "fg-chat/claude",
+        "route_step": 1,
+        "routing_source": "live",
+        "subscription": "max-oauth-passthrough",
+        "task_id": "",
+        "timestamp": "<volatile>",
+        "tokens_estimated": 0,
+        "tool_call_id": "req_4",
+        "total_tokens": 21,
+        "turn_index": 1,
+        "user_hash": "cladpt"
+      }
+    ],
+    "scenario": "messages sse, no header, global span only → neutral row",
+    "upstream": [
+      {
+        "body": {
+          "max_tokens": 64,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "ping",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "claude-sonnet-5",
+          "stream": true,
+          "system": [
+            {
+              "text": "You are a test. sk-test-system",
+              "type": "text"
+            }
+          ],
+          "tools": [
+            {
+              "input_schema": {},
+              "name": "Agent"
+            },
+            {
+              "input_schema": {},
+              "name": "Read"
+            }
+          ]
+        },
+        "headers": {
+          "accept-encoding": "identity",
+          "content-type": "application/json",
+          "x-api-key": "sk-test-client"
+        },
+        "host": "api.anthropic.com",
+        "method": "POST",
+        "path": "/v1/messages"
+      }
+    ]
+  },
+  {
+    "files": {
+      "llm-proxy/context-breakdown/span-global.json": {
+        "cache_breakpoint_indices": [],
+        "cache_breakpoints": 0,
+        "cacheable_prefix_bytes": 122,
+        "capturedAt": "<ts>",
+        "categories": [
+          {
+            "bytes": 55,
+            "detail": {
+              "block_count": 1,
+              "blocks": [
+                {
+                  "cached": false,
+                  "chars": 30,
+                  "preview": "You are a test. <SECRET_REDACTED>"
+                }
+              ],
+              "cached": true,
+              "hash": "3f4992de85bbfe46",
+              "preview": "You are a test. <SECRET_REDACTED>",
+              "section_headers": [],
+              "sections": [
+                {
+                  "header": "(intro)",
+                  "text": "You are a test. <SECRET_REDACTED>"
+                }
+              ],
+              "total_bytes": 30,
+              "total_chars": 30
+            },
+            "key": "sys",
+            "label": "System Instructions"
+          },
+          {
+            "bytes": 67,
+            "detail": {
+              "count": 2,
+              "items": [
+                {
+                  "bytes": 34,
+                  "description": "",
+                  "input_schema_keys": [],
+                  "name": "Agent"
+                },
+                {
+                  "bytes": 33,
+                  "description": "",
+                  "input_schema_keys": [],
+                  "name": "Read"
+                }
+              ]
+            },
+            "key": "tools",
+            "label": "Tool Descriptions"
+          },
+          {
+            "bytes": 0,
+            "detail": {
+              "occurrences": 0,
+              "text": null
+            },
+            "key": "know",
+            "label": "Retrieved Knowledge"
+          },
+          {
+            "bytes": 0,
+            "detail": {
+              "count": 0,
+              "items": []
+            },
+            "key": "hist",
+            "label": "Conversation History"
+          },
+          {
+            "bytes": 0,
+            "detail": {
+              "count": 0,
+              "items": []
+            },
+            "key": "tout",
+            "label": "Tool Outputs"
+          },
+          {
+            "bytes": 29,
+            "detail": {
+              "count": 1,
+              "items": [
+                {
+                  "bytes": 29,
+                  "preview": "ping",
+                  "role": "user"
+                }
+              ]
+            },
+            "key": "user",
+            "label": "User Input"
+          }
+        ],
+        "est_tokens": 38,
+        "fresh_input_bytes": 29,
+        "knowledge_cadence": "per-prompt (UserPromptSubmit hook — once per user submission, then cached in history)",
+        "knowledge_occurrences": 0,
+        "knowledge_text": null,
+        "message_count": 1,
+        "model": "claude-sonnet-5",
+        "task_id": "span-global",
+        "tool_count": 2,
+        "total_bytes": 151
+      },
+      "measurements/span-global/context-turns.jsonl": [
+        {
+          "agent": "claude",
+          "cache_breakpoints": [],
+          "categories": [
+            {
+              "bytes": 55,
+              "detail": {
+                "block_count": 1,
+                "blocks": [
+                  {
+                    "cached": false,
+                    "chars": 30,
+                    "preview": "You are a test. <SECRET_REDACTED>"
+                  }
+                ],
+                "cached": true,
+                "hash": "3f4992de85bbfe46",
+                "preview": "You are a test. <SECRET_REDACTED>",
+                "section_headers": [],
+                "sections": [
+                  {
+                    "header": "(intro)",
+                    "text": "You are a test. <SECRET_REDACTED>"
+                  }
+                ],
+                "total_bytes": 30,
+                "total_chars": 30
+              },
+              "key": "sys",
+              "label": "System Instructions"
+            },
+            {
+              "bytes": 67,
+              "detail": {
+                "count": 2,
+                "items": [
+                  {
+                    "bytes": 34,
+                    "description": "",
+                    "input_schema_keys": [],
+                    "name": "Agent"
+                  },
+                  {
+                    "bytes": 33,
+                    "description": "",
+                    "input_schema_keys": [],
+                    "name": "Read"
+                  }
+                ]
+              },
+              "key": "tools",
+              "label": "Tool Descriptions"
+            },
+            {
+              "bytes": 0,
+              "detail": {
+                "occurrences": 0,
+                "text": null
+              },
+              "key": "know",
+              "label": "Retrieved Knowledge"
+            },
+            {
+              "bytes": 0,
+              "detail": {
+                "count": 0,
+                "items": []
+              },
+              "key": "hist",
+              "label": "Conversation History"
+            },
+            {
+              "bytes": 0,
+              "detail": {
+                "count": 0,
+                "items": []
+              },
+              "key": "tout",
+              "label": "Tool Outputs"
+            },
+            {
+              "bytes": 29,
+              "detail": {
+                "count": 1,
+                "items": [
+                  {
+                    "bytes": 29,
+                    "preview": "ping",
+                    "role": "user"
+                  }
+                ]
+              },
+              "key": "user",
+              "label": "User Input"
+            }
+          ],
+          "messages": [
+            {
+              "bytes": 31,
+              "i": 0,
+              "preview": "ping",
+              "role": "user",
+              "tool": null
+            }
+          ],
+          "model": "claude-sonnet-5",
+          "observation_ref": null,
+          "request_id": "req_5",
+          "task_id": "span-global",
+          "ts": "<ts>",
+          "usage": {
+            "cache_read": 300,
+            "cache_write": 40,
+            "input": 12,
+            "output": 9
+          },
+          "wire": "anthropic"
+        }
+      ]
+    },
+    "response": {
+      "body": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1\",\"model\":\"claude-sonnet-5\",\"usage\":{\"input_tokens\":12,\"output_tokens\":1,\"cache_read_input_tokens\":300,\"cache_creation_input_tokens\":40}}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"pong sk-test-leaked\"}}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":9}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
+      "status": 200
+    },
+    "rows": [
+      {
+        "_rowid": 5,
+        "agent": "claude",
+        "attempt_trail": "",
+        "band_source": "route fg-chat/claude",
+        "cache_read_tokens": 300,
+        "cache_write_tokens": 40,
+        "chain_position": 0,
+        "conversation_key": "7151a8ae6105",
+        "granularity_tier": "per-turn",
+        "id": 4,
+        "input_tokens": 12,
+        "latency_ms": "<volatile>",
+        "model": "claude-sonnet-5",
+        "model_raw": "claude-sonnet-5",
+        "offloaded_from": "",
+        "output_tokens": 9,
+        "overhead_ms": null,
+        "parent_call_id": "",
+        "process": "token-adapter-claude",
+        "project": "",
+        "prompt_preview": "ping",
+        "provider": "claude-code-max",
+        "reasoning_tokens": 0,
+        "route_band": "high",
+        "route_key": "fg-chat/claude",
+        "route_step": 1,
+        "routing_source": "live",
+        "subscription": "max-oauth-passthrough",
+        "task_id": "span-global",
+        "timestamp": "<volatile>",
+        "tokens_estimated": 0,
+        "tool_call_id": "req_5",
+        "total_tokens": 21,
+        "turn_index": 1,
+        "user_hash": "cladpt"
+      }
+    ],
+    "scenario": "messages sse, malformed x-task-id → ambient global span",
+    "upstream": [
+      {
+        "body": {
+          "max_tokens": 64,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "ping",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "claude-sonnet-5",
+          "stream": true,
+          "system": [
+            {
+              "text": "You are a test. sk-test-system",
+              "type": "text"
+            }
+          ],
+          "tools": [
+            {
+              "input_schema": {},
+              "name": "Agent"
+            },
+            {
+              "input_schema": {},
+              "name": "Read"
+            }
+          ]
+        },
+        "headers": {
+          "accept-encoding": "identity",
+          "content-type": "application/json",
+          "x-api-key": "sk-test-client",
+          "x-task-id": "bad id!"
+        },
+        "host": "api.anthropic.com",
+        "method": "POST",
+        "path": "/v1/messages"
+      }
+    ]
+  },
+  {
+    "files": {},
+    "response": {
+      "body": {
+        "input_tokens": 21
+      },
+      "status": 200
+    },
+    "rows": [],
+    "scenario": "messages count_tokens is forwarded, never tapped",
+    "upstream": [
+      {
+        "body": {
+          "max_tokens": 64,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "ping",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "claude-sonnet-5",
+          "system": [
+            {
+              "text": "You are a test. sk-test-system",
+              "type": "text"
+            }
+          ],
+          "tools": [
+            {
+              "input_schema": {},
+              "name": "Agent"
+            },
+            {
+              "input_schema": {},
+              "name": "Read"
+            }
+          ]
+        },
+        "headers": {
+          "accept-encoding": "identity",
+          "content-type": "application/json",
+          "x-api-key": "sk-test-client",
+          "x-task-id": "task-hdr"
+        },
+        "host": "api.anthropic.com",
+        "method": "POST",
+        "path": "/v1/messages/count_tokens"
+      }
+    ]
+  },
+  {
+    "files": {},
+    "response": {
+      "body": {
+        "error": {
+          "message": "nope",
+          "type": "invalid_request_error"
+        },
+        "type": "error"
+      },
+      "status": 400
+    },
+    "rows": [],
+    "scenario": "messages upstream error has no usage → no row",
+    "upstream": [
+      {
+        "body": {
+          "max_tokens": 64,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "ping",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "metadata": {
+            "fail": true
+          },
+          "model": "claude-sonnet-5",
+          "system": [
+            {
+              "text": "You are a test. sk-test-system",
+              "type": "text"
+            }
+          ],
+          "tools": [
+            {
+              "input_schema": {},
+              "name": "Agent"
+            },
+            {
+              "input_schema": {},
+              "name": "Read"
+            }
+          ]
+        },
+        "headers": {
+          "accept-encoding": "identity",
+          "content-type": "application/json",
+          "x-api-key": "sk-test-client",
+          "x-task-id": "task-hdr"
+        },
+        "host": "api.anthropic.com",
+        "method": "POST",
+        "path": "/v1/messages"
+      }
+    ]
+  },
+  {
+    "files": {
+      "llm-proxy/context-breakdown/task-oc.json": {
+        "cache_breakpoint_indices": [],
+        "cache_breakpoints": 0,
+        "cacheable_prefix_bytes": 33,
+        "capturedAt": "<ts>",
+        "categories": [
+          {
+            "bytes": 33,
+            "detail": {
+              "block_count": 1,
+              "blocks": [
+                {
+                  "cached": false,
+                  "chars": 3,
+                  "preview": "sys"
+                }
+              ],
+              "cached": false,
+              "hash": "518b67e652531c5f",
+              "preview": "sys",
+              "section_headers": [],
+              "sections": [
+                {
+                  "header": "(intro)",
+                  "text": "sys"
+                }
+              ],
+              "total_bytes": 3,
+              "total_chars": 3
+            },
+            "key": "sys",
+            "label": "System Instructions"
+          },
+          {
+            "bytes": 0,
+            "detail": {
+              "count": 0,
+              "items": []
+            },
+            "key": "tools",
+            "label": "Tool Descriptions"
+          },
+          {
+            "bytes": 0,
+            "detail": {
+              "occurrences": 0,
+              "text": null
+            },
+            "key": "know",
+            "label": "Retrieved Knowledge"
+          },
+          {
+            "bytes": 0,
+            "detail": {
+              "count": 0,
+              "items": []
+            },
+            "key": "hist",
+            "label": "Conversation History"
+          },
+          {
+            "bytes": 0,
+            "detail": {
+              "count": 0,
+              "items": []
+            },
+            "key": "tout",
+            "label": "Tool Outputs"
+          },
+          {
+            "bytes": 32,
+            "detail": {
+              "count": 1,
+              "items": [
+                {
+                  "bytes": 32,
+                  "preview": "ping",
+                  "role": "user"
+                }
+              ]
+            },
+            "key": "user",
+            "label": "User Input"
+          }
+        ],
+        "est_tokens": 16,
+        "fresh_input_bytes": 32,
+        "knowledge_cadence": "per-prompt (UserPromptSubmit hook — once per user submission, then cached in history)",
+        "knowledge_occurrences": 0,
+        "knowledge_text": null,
+        "message_count": 2,
+        "model": "gpt-4o-mini",
+        "task_id": "task-oc",
+        "tool_count": 0,
+        "total_bytes": 65
+      },
+      "measurements/task-oc/context-turns.jsonl": [
+        {
+          "agent": "opencode",
+          "cache_breakpoints": [],
+          "categories": [
+            {
+              "bytes": 33,
+              "detail": {
+                "block_count": 1,
+                "blocks": [
+                  {
+                    "cached": false,
+                    "chars": 3,
+                    "preview": "sys"
+                  }
+                ],
+                "cached": true,
+                "hash": "518b67e652531c5f",
+                "preview": "sys",
+                "section_headers": [],
+                "sections": [
+                  {
+                    "header": "(intro)",
+                    "text": "sys"
+                  }
+                ],
+                "total_bytes": 3,
+                "total_chars": 3
+              },
+              "key": "sys",
+              "label": "System Instructions"
+            },
+            {
+              "bytes": 0,
+              "detail": {
+                "count": 0,
+                "items": []
+              },
+              "key": "tools",
+              "label": "Tool Descriptions"
+            },
+            {
+              "bytes": 0,
+              "detail": {
+                "occurrences": 0,
+                "text": null
+              },
+              "key": "know",
+              "label": "Retrieved Knowledge"
+            },
+            {
+              "bytes": 0,
+              "detail": {
+                "count": 0,
+                "items": []
+              },
+              "key": "hist",
+              "label": "Conversation History"
+            },
+            {
+              "bytes": 0,
+              "detail": {
+                "count": 0,
+                "items": []
+              },
+              "key": "tout",
+              "label": "Tool Outputs"
+            },
+            {
+              "bytes": 32,
+              "detail": {
+                "count": 1,
+                "items": [
+                  {
+                    "bytes": 32,
+                    "preview": "ping",
+                    "role": "user"
+                  }
+                ]
+              },
+              "key": "user",
+              "label": "User Input"
+            }
+          ],
+          "messages": [
+            {
+              "bytes": 3,
+              "i": 0,
+              "preview": "sys",
+              "role": "system",
+              "tool": null
+            },
+            {
+              "bytes": 4,
+              "i": 1,
+              "preview": "ping",
+              "role": "user",
+              "tool": null
+            }
+          ],
+          "model": "gpt-4o-mini-2024-07-18",
+          "observation_ref": null,
+          "request_id": "shim-<uuid>",
+          "task_id": "task-oc",
+          "ts": "<ts>",
+          "usage": {
+            "cache_read": 100,
+            "cache_write": null,
+            "input": 20,
+            "output": 5
+          },
+          "wire": "openai"
+        }
+      ]
+    },
+    "response": {
+      "body": {
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "message": {
+              "content": "pong",
+              "role": "assistant"
+            }
+          }
+        ],
+        "created": "<volatile>",
+        "id": "chatcmpl-<uuid>",
+        "model": "gpt-4o-mini-2024-07-18",
+        "object": "chat.completion",
+        "usage": {
+          "completion_tokens": 5,
+          "prompt_tokens": 120,
+          "prompt_tokens_details": {
+            "cached_tokens": 100
+          },
+          "total_tokens": 125
+        }
+      },
+      "status": 200
+    },
+    "rows": [
+      {
+        "_rowid": 6,
+        "agent": "opencode",
+        "attempt_trail": "",
+        "band_source": "route defaults.fg-chat",
+        "cache_read_tokens": 100,
+        "cache_write_tokens": 0,
+        "chain_position": 0,
+        "conversation_key": "334aff88b6a7",
+        "granularity_tier": "per-llm-call",
+        "id": 1,
+        "input_tokens": 20,
+        "latency_ms": "<volatile>",
+        "model": "gpt-4o-mini-2024-07-18",
+        "model_raw": "gpt-4o-mini-2024-07-18",
+        "offloaded_from": "",
+        "output_tokens": 5,
+        "overhead_ms": null,
+        "parent_call_id": "",
+        "process": "opencode",
+        "project": "",
+        "prompt_preview": "ping",
+        "provider": "openai",
+        "reasoning_tokens": 0,
+        "route_band": "medium",
+        "route_key": "defaults.fg-chat",
+        "route_step": 3,
+        "routing_source": "live",
+        "subscription": "openai-api",
+        "task_id": "task-oc",
+        "timestamp": "<volatile>",
+        "tokens_estimated": 0,
+        "tool_call_id": "shim-<uuid>",
+        "total_tokens": 25,
+        "turn_index": 1,
+        "user_hash": "opcadt"
+      }
+    ],
+    "scenario": "opencode shim, x-task-id header",
+    "upstream": [
+      {
+        "body": {
+          "max_tokens": 4096,
+          "messages": [
+            {
+              "content": "sys",
+              "role": "system"
+            },
+            {
+              "content": "ping",
+              "role": "user"
+            }
+          ],
+          "model": "gpt-4o-mini",
+          "stream": false
+        },
+        "headers": {
+          "accept-encoding": "br, gzip, deflate, zstd",
+          "authorization": "Bearer sk-test-openai",
+          "content-type": "application/json"
+        },
+        "host": "api.openai.com",
+        "method": "POST",
+        "path": "/v1/chat/completions"
+      }
+    ]
+  },
+  {
+    "files": {
+      "llm-proxy/context-breakdown/task-cp.json": {
+        "cache_breakpoint_indices": [],
+        "cache_breakpoints": 0,
+        "cacheable_prefix_bytes": 36,
+        "capturedAt": "<ts>",
+        "categories": [
+          {
+            "bytes": 0,
+            "detail": {
+              "block_count": 0,
+              "blocks": [],
+              "cached": false,
+              "hash": "e3b0c44298fc1c14",
+              "preview": "",
+              "section_headers": [],
+              "sections": [],
+              "total_bytes": 0,
+              "total_chars": 0
+            },
+            "key": "sys",
+            "label": "System Instructions"
+          },
+          {
+            "bytes": 0,
+            "detail": {
+              "count": 0,
+              "items": []
+            },
+            "key": "tools",
+            "label": "Tool Descriptions"
+          },
+          {
+            "bytes": 0,
+            "detail": {
+              "occurrences": 0,
+              "text": null
+            },
+            "key": "know",
+            "label": "Retrieved Knowledge"
+          },
+          {
+            "bytes": 36,
+            "detail": {
+              "count": 1,
+              "items": [
+                {
+                  "bytes": 36,
+                  "preview": "sys",
+                  "role": "developer"
+                }
+              ]
+            },
+            "key": "hist",
+            "label": "Conversation History"
+          },
+          {
+            "bytes": 0,
+            "detail": {
+              "count": 0,
+              "items": []
+            },
+            "key": "tout",
+            "label": "Tool Outputs"
+          },
+          {
+            "bytes": 57,
+            "detail": {
+              "count": 1,
+              "items": [
+                {
+                  "bytes": 57,
+                  "preview": "ping",
+                  "role": "user"
+                }
+              ]
+            },
+            "key": "user",
+            "label": "User Input"
+          }
+        ],
+        "est_tokens": 23,
+        "fresh_input_bytes": 57,
+        "knowledge_cadence": "per-prompt (UserPromptSubmit hook — once per user submission, then cached in history)",
+        "knowledge_occurrences": 0,
+        "knowledge_text": null,
+        "message_count": 2,
+        "model": "gpt-4o-mini",
+        "task_id": "task-cp",
+        "tool_count": 0,
+        "total_bytes": 93
+      },
+      "measurements/task-cp/context-turns.jsonl": [
+        {
+          "agent": "copilot",
+          "cache_breakpoints": [],
+          "categories": [
+            {
+              "bytes": 33,
+              "detail": {
+                "block_count": 1,
+                "blocks": [
+                  {
+                    "cached": false,
+                    "chars": 3,
+                    "preview": "sys"
+                  }
+                ],
+                "cached": true,
+                "hash": "518b67e652531c5f",
+                "preview": "sys",
+                "section_headers": [],
+                "sections": [
+                  {
+                    "header": "(intro)",
+                    "text": "sys"
+                  }
+                ],
+                "total_bytes": 3,
+                "total_chars": 3
+              },
+              "key": "sys",
+              "label": "System Instructions"
+            },
+            {
+              "bytes": 0,
+              "detail": {
+                "count": 0,
+                "items": []
+              },
+              "key": "tools",
+              "label": "Tool Descriptions"
+            },
+            {
+              "bytes": 0,
+              "detail": {
+                "occurrences": 0,
+                "text": null
+              },
+              "key": "know",
+              "label": "Retrieved Knowledge"
+            },
+            {
+              "bytes": 0,
+              "detail": {
+                "count": 0,
+                "items": []
+              },
+              "key": "hist",
+              "label": "Conversation History"
+            },
+            {
+              "bytes": 0,
+              "detail": {
+                "count": 0,
+                "items": []
+              },
+              "key": "tout",
+              "label": "Tool Outputs"
+            },
+            {
+              "bytes": 32,
+              "detail": {
+                "count": 1,
+                "items": [
+                  {
+                    "bytes": 32,
+                    "preview": "ping",
+                    "role": "user"
+                  }
+                ]
+              },
+              "key": "user",
+              "label": "User Input"
+            }
+          ],
+          "messages": [
+            {
+              "bytes": 3,
+              "i": 0,
+              "preview": "sys",
+              "role": "system",
+              "tool": null
+            },
+            {
+              "bytes": 4,
+              "i": 1,
+              "preview": "ping",
+              "role": "user",
+              "tool": null
+            }
+          ],
+          "model": "gpt-4o-mini-2024-07-18",
+          "observation_ref": null,
+          "request_id": "shim-<uuid>",
+          "task_id": "task-cp",
+          "ts": "<ts>",
+          "usage": {
+            "cache_read": 100,
+            "cache_write": null,
+            "input": 20,
+            "output": 5
+          },
+          "wire": "openai"
+        }
+      ]
+    },
+    "response": {
+      "body": {
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "message": {
+              "content": "pong",
+              "role": "assistant"
+            }
+          }
+        ],
+        "created": "<volatile>",
+        "id": "chatcmpl-<uuid>",
+        "model": "gpt-4o-mini-2024-07-18",
+        "object": "chat.completion",
+        "usage": {
+          "completion_tokens": 5,
+          "prompt_tokens": 120,
+          "prompt_tokens_details": {
+            "cached_tokens": 100
+          },
+          "total_tokens": 125
+        }
+      },
+      "status": 200
+    },
+    "rows": [
+      {
+        "_rowid": 7,
+        "agent": "copilot",
+        "attempt_trail": "",
+        "band_source": "route defaults.fg-chat",
+        "cache_read_tokens": 100,
+        "cache_write_tokens": 0,
+        "chain_position": 0,
+        "conversation_key": "b5ceba774e83",
+        "granularity_tier": "per-llm-call",
+        "id": 1,
+        "input_tokens": 20,
+        "latency_ms": "<volatile>",
+        "model": "gpt-4o-mini-2024-07-18",
+        "model_raw": "gpt-4o-mini-2024-07-18",
+        "offloaded_from": "",
+        "output_tokens": 5,
+        "overhead_ms": null,
+        "parent_call_id": "",
+        "process": "copilot",
+        "project": "glass",
+        "prompt_preview": "ping",
+        "provider": "openai",
+        "reasoning_tokens": 0,
+        "route_band": "medium",
+        "route_key": "defaults.fg-chat",
+        "route_step": 3,
+        "routing_source": "live",
+        "subscription": "openai-api",
+        "task_id": "task-cp",
+        "timestamp": "<volatile>",
+        "tokens_estimated": 0,
+        "tool_call_id": "shim-<uuid>",
+        "total_tokens": 25,
+        "turn_index": 1,
+        "user_hash": "copadt"
+      }
+    ],
+    "scenario": "copilot shim, project + task in path",
+    "upstream": [
+      {
+        "body": {
+          "max_tokens": 4096,
+          "messages": [
+            {
+              "content": "sys",
+              "role": "system"
+            },
+            {
+              "content": "ping",
+              "role": "user"
+            }
+          ],
+          "model": "gpt-4o-mini",
+          "stream": false
+        },
+        "headers": {
+          "accept-encoding": "br, gzip, deflate, zstd",
+          "authorization": "Bearer sk-test-openai",
+          "content-type": "application/json"
+        },
+        "host": "api.openai.com",
+        "method": "POST",
+        "path": "/v1/chat/completions"
+      }
+    ]
+  },
+  {
+    "files": {
+      "llm-proxy/context-breakdown/task-resp.json": {
+        "cache_breakpoint_indices": [],
+        "cache_breakpoints": 0,
+        "cacheable_prefix_bytes": 0,
+        "capturedAt": "<ts>",
+        "categories": [
+          {
+            "bytes": 0,
+            "detail": {
+              "block_count": 0,
+              "blocks": [],
+              "cached": true,
+              "hash": "e3b0c44298fc1c14",
+              "preview": "",
+              "section_headers": [],
+              "sections": [],
+              "total_bytes": 0,
+              "total_chars": 0
+            },
+            "key": "sys",
+            "label": "System Instructions"
+          },
+          {
+            "bytes": 0,
+            "detail": {
+              "count": 0,
+              "items": []
+            },
+            "key": "tools",
+            "label": "Tool Descriptions"
+          },
+          {
+            "bytes": 0,
+            "detail": {
+              "occurrences": 0,
+              "text": null
+            },
+            "key": "know",
+            "label": "Retrieved Knowledge"
+          },
+          {
+            "bytes": 0,
+            "detail": {
+              "count": 0,
+              "items": []
+            },
+            "key": "hist",
+            "label": "Conversation History"
+          },
+          {
+            "bytes": 0,
+            "detail": {
+              "count": 0,
+              "items": []
+            },
+            "key": "tout",
+            "label": "Tool Outputs"
+          },
+          {
+            "bytes": 57,
+            "detail": {
+              "count": 1,
+              "items": [
+                {
+                  "bytes": 57,
+                  "preview": "ping",
+                  "role": "user"
+                }
+              ]
+            },
+            "key": "user",
+            "label": "User Input"
+          }
+        ],
+        "est_tokens": 14,
+        "fresh_input_bytes": 57,
+        "knowledge_cadence": "per-prompt (UserPromptSubmit hook — once per user submission, then cached in history)",
+        "knowledge_occurrences": 0,
+        "knowledge_text": null,
+        "message_count": 1,
+        "model": "gpt-4o-mini",
+        "task_id": "task-resp",
+        "tool_count": 0,
+        "total_bytes": 57
+      },
+      "measurements/task-resp/context-turns.jsonl": [
+        {
+          "agent": "opencode",
+          "cache_breakpoints": [],
+          "categories": [
+            {
+              "bytes": 0,
+              "detail": {
+                "block_count": 0,
+                "blocks": [],
+                "cached": true,
+                "hash": "e3b0c44298fc1c14",
+                "preview": "",
+                "section_headers": [],
+                "sections": [],
+                "total_bytes": 0,
+                "total_chars": 0
+              },
+              "key": "sys",
+              "label": "System Instructions"
+            },
+            {
+              "bytes": 0,
+              "detail": {
+                "count": 0,
+                "items": []
+              },
+              "key": "tools",
+              "label": "Tool Descriptions"
+            },
+            {
+              "bytes": 0,
+              "detail": {
+                "occurrences": 0,
+                "text": null
+              },
+              "key": "know",
+              "label": "Retrieved Knowledge"
+            },
+            {
+              "bytes": 0,
+              "detail": {
+                "count": 0,
+                "items": []
+              },
+              "key": "hist",
+              "label": "Conversation History"
+            },
+            {
+              "bytes": 0,
+              "detail": {
+                "count": 0,
+                "items": []
+              },
+              "key": "tout",
+              "label": "Tool Outputs"
+            },
+            {
+              "bytes": 32,
+              "detail": {
+                "count": 1,
+                "items": [
+                  {
+                    "bytes": 32,
+                    "preview": "ping",
+                    "role": "user"
+                  }
+                ]
+              },
+              "key": "user",
+              "label": "User Input"
+            }
+          ],
+          "messages": [
+            {
+              "bytes": 4,
+              "i": 0,
+              "preview": "ping",
+              "role": "user",
+              "tool": null
+            }
+          ],
+          "model": "gpt-4o-mini-2024-07-18",
+          "observation_ref": null,
+          "request_id": "shim-<uuid>",
+          "task_id": "task-resp",
+          "ts": "<ts>",
+          "usage": {
+            "cache_read": 100,
+            "cache_write": null,
+            "input": 20,
+            "output": 5
+          },
+          "wire": "openai"
+        }
+      ]
+    },
+    "response": {
+      "body": {
+        "id": "resp_<uuid>",
+        "model": "gpt-4o-mini-2024-07-18",
+        "object": "response",
+        "output": [
+          {
+            "content": [
+              {
+                "annotations": [],
+                "text": "pong",
+                "type": "output_text"
+              }
+            ],
+            "id": "msg_resp_<uuid>",
+            "role": "assistant",
+            "status": "completed",
+            "type": "message"
+          }
+        ],
+        "status": "completed",
+        "usage": {
+          "input_tokens": 120,
+          "input_tokens_details": {
+            "cached_tokens": 100
+          },
+          "output_tokens": 5,
+          "total_tokens": 125
+        }
+      },
+      "status": 200
+    },
+    "rows": [
+      {
+        "_rowid": 8,
+        "agent": "opencode",
+        "attempt_trail": "",
+        "band_source": "route defaults.fg-chat",
+        "cache_read_tokens": 100,
+        "cache_write_tokens": 0,
+        "chain_position": 0,
+        "conversation_key": "25116410ff1d",
+        "granularity_tier": "per-llm-call",
+        "id": 2,
+        "input_tokens": 20,
+        "latency_ms": "<volatile>",
+        "model": "gpt-4o-mini-2024-07-18",
+        "model_raw": "gpt-4o-mini-2024-07-18",
+        "offloaded_from": "",
+        "output_tokens": 5,
+        "overhead_ms": null,
+        "parent_call_id": "",
+        "process": "opencode",
+        "project": "",
+        "prompt_preview": "ping",
+        "provider": "openai",
+        "reasoning_tokens": 0,
+        "route_band": "medium",
+        "route_key": "defaults.fg-chat",
+        "route_step": 3,
+        "routing_source": "live",
+        "subscription": "openai-api",
+        "task_id": "task-resp",
+        "timestamp": "<volatile>",
+        "tokens_estimated": 0,
+        "tool_call_id": "shim-<uuid>",
+        "total_tokens": 25,
+        "turn_index": 1,
+        "user_hash": "opcadt"
+      }
+    ],
+    "scenario": "opencode responses shim, task in path",
+    "upstream": [
+      {
+        "body": {
+          "max_tokens": 4096,
+          "messages": [
+            {
+              "content": "ping",
+              "role": "user"
+            }
+          ],
+          "model": "gpt-4o-mini",
+          "stream": false
+        },
+        "headers": {
+          "accept-encoding": "br, gzip, deflate, zstd",
+          "authorization": "Bearer sk-test-openai",
+          "content-type": "application/json"
+        },
+        "host": "api.openai.com",
+        "method": "POST",
+        "path": "/v1/chat/completions"
+      }
+    ]
+  },
+  {
+    "files": {},
+    "response": {
+      "body": {
+        "content": "pong",
+        "latencyMs": "<volatile>",
+        "model": "gpt-4o-mini-2024-07-18",
+        "provider": "openai",
+        "tokens": {
+          "cache_read_tokens": 100,
+          "cache_write_tokens": 0,
+          "input": 20,
+          "output": 5,
+          "total": 25
+        }
+      },
+      "status": 200
+    },
+    "rows": [
+      {
+        "_rowid": 9,
+        "agent": "",
+        "attempt_trail": "",
+        "band_source": "route defaults.background",
+        "cache_read_tokens": 100,
+        "cache_write_tokens": 0,
+        "chain_position": 0,
+        "conversation_key": "",
+        "granularity_tier": "",
+        "id": 1,
+        "input_tokens": 20,
+        "latency_ms": "<volatile>",
+        "model": "gpt-4o-mini-2024-07-18",
+        "model_raw": "gpt-4o-mini-2024-07-18",
+        "offloaded_from": "",
+        "output_tokens": 5,
+        "overhead_ms": null,
+        "parent_call_id": "",
+        "process": "observation-writer",
+        "project": "",
+        "prompt_preview": "ping",
+        "provider": "openai",
+        "reasoning_tokens": 0,
+        "route_band": "small",
+        "route_key": "defaults.background",
+        "route_step": 3,
+        "routing_source": "live",
+        "subscription": "openai-api",
+        "task_id": "",
+        "timestamp": "<volatile>",
+        "tokens_estimated": 0,
+        "tool_call_id": "",
+        "total_tokens": 25,
+        "turn_index": 0,
+        "user_hash": "tester"
+      }
+    ],
+    "scenario": "api/complete, background process ignores the global span",
+    "upstream": [
+      {
+        "body": {
+          "max_tokens": 4096,
+          "messages": [
+            {
+              "content": "ping",
+              "role": "user"
+            }
+          ],
+          "model": "gpt-4o-mini",
+          "stream": false
+        },
+        "headers": {
+          "accept-encoding": "br, gzip, deflate, zstd",
+          "authorization": "Bearer sk-test-openai",
+          "content-type": "application/json"
+        },
+        "host": "api.openai.com",
+        "method": "POST",
+        "path": "/v1/chat/completions"
+      }
+    ]
+  },
+  {
+    "files": {
+      "measurements/span-global/context-turns.jsonl": [
+        {
+          "agent": "mastra",
+          "cache_breakpoints": [],
+          "categories": [
+            {
+              "bytes": 0,
+              "detail": {
+                "block_count": 0,
+                "blocks": [],
+                "cached": true,
+                "hash": "e3b0c44298fc1c14",
+                "preview": "",
+                "section_headers": [],
+                "sections": [],
+                "total_bytes": 0,
+                "total_chars": 0
+              },
+              "key": "sys",
+              "label": "System Instructions"
+            },
+            {
+              "bytes": 0,
+              "detail": {
+                "count": 0,
+                "items": []
+              },
+              "key": "tools",
+              "label": "Tool Descriptions"
+            },
+            {
+              "bytes": 0,
+              "detail": {
+                "occurrences": 0,
+                "text": null
+              },
+              "key": "know",
+              "label": "Retrieved Knowledge"
+            },
+            {
+              "bytes": 0,
+              "detail": {
+                "count": 0,
+                "items": []
+              },
+              "key": "hist",
+              "label": "Conversation History"
+            },
+            {
+              "bytes": 0,
+              "detail": {
+                "count": 0,
+                "items": []
+              },
+              "key": "tout",
+              "label": "Tool Outputs"
+            },
+            {
+              "bytes": 45,
+              "detail": {
+                "count": 1,
+                "items": [
+                  {
+                    "bytes": 45,
+                    "preview": "ping <SECRET_REDACTED>",
+                    "role": "user"
+                  }
+                ]
+              },
+              "key": "user",
+              "label": "User Input"
+            }
+          ],
+          "messages": [
+            {
+              "bytes": 17,
+              "i": 0,
+              "preview": "ping <SECRET_REDACTED>",
+              "role": "user",
+              "tool": null
+            }
+          ],
+          "model": "gpt-4o-mini-2024-07-18",
+          "observation_ref": null,
+          "request_id": "",
+          "task_id": "span-global",
+          "ts": "<ts>",
+          "usage": {
+            "cache_read": 100,
+            "cache_write": null,
+            "input": 20,
+            "output": 5
+          },
+          "wire": "openai"
+        }
+      ],
+      "measurements/span-global/raw-bodies.jsonl": [
+        {
+          "request": "{\"agent\":\"mastra\",\"process\":\"mastra-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"ping <SECRET_REDACTED>\"}]}",
+          "request_id": "",
+          "response": "{\"content\":\"pong\",\"model\":\"gpt-4o-mini-2024-07-18\",\"tokens\":{\"input\":20,\"output\":5,\"total\":25,\"cache_read_tokens\":100,\"cache_write_tokens\":0}}",
+          "task_id": "span-global",
+          "ts": "<ts>",
+          "wire": "openai"
+        }
+      ]
+    },
+    "response": {
+      "body": {
+        "content": "pong",
+        "latencyMs": "<volatile>",
+        "model": "gpt-4o-mini-2024-07-18",
+        "provider": "openai",
+        "tokens": {
+          "cache_read_tokens": 100,
+          "cache_write_tokens": 0,
+          "input": 20,
+          "output": 5,
+          "total": 25
+        }
+      },
+      "status": 200
+    },
+    "rows": [
+      {
+        "_rowid": 10,
+        "agent": "mastra",
+        "attempt_trail": "",
+        "band_source": "route defaults.background",
+        "cache_read_tokens": 100,
+        "cache_write_tokens": 0,
+        "chain_position": 0,
+        "conversation_key": "",
+        "granularity_tier": "",
+        "id": 1,
+        "input_tokens": 20,
+        "latency_ms": "<volatile>",
+        "model": "gpt-4o-mini-2024-07-18",
+        "model_raw": "gpt-4o-mini-2024-07-18",
+        "offloaded_from": "",
+        "output_tokens": 5,
+        "overhead_ms": null,
+        "parent_call_id": "",
+        "process": "mastra-chat",
+        "project": "",
+        "prompt_preview": "ping <SECRET_REDACTED>",
+        "provider": "openai",
+        "reasoning_tokens": 0,
+        "route_band": "small",
+        "route_key": "defaults.background",
+        "route_step": 3,
+        "routing_source": "live",
+        "subscription": "openai-api",
+        "task_id": "span-global",
+        "timestamp": "<volatile>",
+        "tokens_estimated": 0,
+        "tool_call_id": "",
+        "total_tokens": 25,
+        "turn_index": 0,
+        "user_hash": "mstadt"
+      }
+    ],
+    "scenario": "api/complete, agent with global span + raw-body capture",
+    "upstream": [
+      {
+        "body": {
+          "max_tokens": 4096,
+          "messages": [
+            {
+              "content": "ping sk-test-user",
+              "role": "user"
+            }
+          ],
+          "model": "gpt-4o-mini",
+          "stream": false
+        },
+        "headers": {
+          "accept-encoding": "br, gzip, deflate, zstd",
+          "authorization": "Bearer sk-test-openai",
+          "content-type": "application/json"
+        },
+        "host": "api.openai.com",
+        "method": "POST",
+        "path": "/v1/chat/completions"
+      }
+    ]
+  },
+  {
+    "files": {},
+    "response": {
+      "body": {
+        "cache_breakpoint_indices": [],
+        "cache_breakpoints": 0,
+        "cacheable_prefix_bytes": 33,
+        "capturedAt": "<ts>",
+        "categories": [
+          {
+            "bytes": 33,
+            "detail": {
+              "block_count": 1,
+              "blocks": [
+                {
+                  "cached": false,
+                  "chars": 3,
+                  "preview": "sys"
+                }
+              ],
+              "cached": false,
+              "hash": "518b67e652531c5f",
+              "preview": "sys",
+              "section_headers": [],
+              "sections": [
+                {
+                  "header": "(intro)",
+                  "text": "sys"
+                }
+              ],
+              "total_bytes": 3,
+              "total_chars": 3
+            },
+            "key": "sys",
+            "label": "System Instructions"
+          },
+          {
+            "bytes": 0,
+            "detail": {
+              "count": 0,
+              "items": []
+            },
+            "key": "tools",
+            "label": "Tool Descriptions"
+          },
+          {
+            "bytes": 0,
+            "detail": {
+              "occurrences": 0,
+              "text": null
+            },
+            "key": "know",
+            "label": "Retrieved Knowledge"
+          },
+          {
+            "bytes": 0,
+            "detail": {
+              "count": 0,
+              "items": []
+            },
+            "key": "hist",
+            "label": "Conversation History"
+          },
+          {
+            "bytes": 0,
+            "detail": {
+              "count": 0,
+              "items": []
+            },
+            "key": "tout",
+            "label": "Tool Outputs"
+          },
+          {
+            "bytes": 32,
+            "detail": {
+              "count": 1,
+              "items": [
+                {
+                  "bytes": 32,
+                  "preview": "ping",
+                  "role": "user"
+                }
+              ]
+            },
+            "key": "user",
+            "label": "User Input"
+          }
+        ],
+        "est_tokens": 16,
+        "fresh_input_bytes": 32,
+        "knowledge_cadence": "per-prompt (UserPromptSubmit hook — once per user submission, then cached in history)",
+        "knowledge_occurrences": 0,
+        "knowledge_text": null,
+        "message_count": 2,
+        "model": "gpt-4o-mini",
+        "task_id": "task-oc",
+        "tool_count": 0,
+        "total_bytes": 65
+      },
+      "status": 200
+    },
+    "rows": [],
+    "scenario": "read: per-run context breakdown",
+    "upstream": []
+  },
+  {
+    "files": {},
+    "response": {
+      "body": {
+        "detail": "ENOENT: no such file or directory, open '<sandbox>/data/llm-proxy/context-breakdown/nope.json'",
+        "error": "no context breakdown captured for this run yet"
+      },
+      "status": 404
+    },
+    "rows": [],
+    "scenario": "read: unknown run breakdown → 404",
+    "upstream": []
+  },
+  {
+    "files": {},
+    "response": {
+      "body": {
+        "contextTurns": [
+          {
+            "agent": "claude",
+            "cache_breakpoints": [],
+            "categories": [
+              {
+                "bytes": 55,
+                "detail": {
+                  "block_count": 1,
+                  "blocks": [
+                    {
+                      "cached": false,
+                      "chars": 30,
+                      "preview": "You are a test. <SECRET_REDACTED>"
+                    }
+                  ],
+                  "cached": true,
+                  "hash": "3f4992de85bbfe46",
+                  "preview": "You are a test. <SECRET_REDACTED>",
+                  "section_headers": [],
+                  "sections": [
+                    {
+                      "header": "(intro)",
+                      "text": "You are a test. <SECRET_REDACTED>"
+                    }
+                  ],
+                  "total_bytes": 30,
+                  "total_chars": 30
+                },
+                "key": "sys",
+                "label": "System Instructions"
+              },
+              {
+                "bytes": 67,
+                "detail": {
+                  "count": 2,
+                  "items": [
+                    {
+                      "bytes": 34,
+                      "description": "",
+                      "input_schema_keys": [],
+                      "name": "Agent"
+                    },
+                    {
+                      "bytes": 33,
+                      "description": "",
+                      "input_schema_keys": [],
+                      "name": "Read"
+                    }
+                  ]
+                },
+                "key": "tools",
+                "label": "Tool Descriptions"
+              },
+              {
+                "bytes": 0,
+                "detail": {
+                  "occurrences": 0,
+                  "text": null
+                },
+                "key": "know",
+                "label": "Retrieved Knowledge"
+              },
+              {
+                "bytes": 0,
+                "detail": {
+                  "count": 0,
+                  "items": []
+                },
+                "key": "hist",
+                "label": "Conversation History"
+              },
+              {
+                "bytes": 0,
+                "detail": {
+                  "count": 0,
+                  "items": []
+                },
+                "key": "tout",
+                "label": "Tool Outputs"
+              },
+              {
+                "bytes": 29,
+                "detail": {
+                  "count": 1,
+                  "items": [
+                    {
+                      "bytes": 29,
+                      "preview": "ping",
+                      "role": "user"
+                    }
+                  ]
+                },
+                "key": "user",
+                "label": "User Input"
+              }
+            ],
+            "messages": [
+              {
+                "bytes": 31,
+                "i": 0,
+                "preview": "ping",
+                "role": "user",
+                "tool": null
+              }
+            ],
+            "model": "claude-sonnet-5",
+            "observation_ref": null,
+            "request_id": "req_1",
+            "task_id": "task-hdr",
+            "ts": "<ts>",
+            "usage": {
+              "cache_read": 300,
+              "cache_write": 40,
+              "input": 12,
+              "output": 9
+            },
+            "wire": "anthropic"
+          }
+        ]
+      },
+      "status": 200
+    },
+    "rows": [],
+    "scenario": "read: context turns of a run",
+    "upstream": []
+  },
+  {
+    "files": {},
+    "response": {
+      "body": {
+        "contextTurns": []
+      },
+      "status": 200
+    },
+    "rows": [],
+    "scenario": "read: context turns, traversal id → empty",
+    "upstream": []
+  },
+  {
+    "files": {
+      "llm-proxy/context-breakdown/task-beta.json": {
+        "cache_breakpoint_indices": [],
+        "cache_breakpoints": 0,
+        "cacheable_prefix_bytes": 122,
+        "capturedAt": "<ts>",
+        "categories": [
+          {
+            "bytes": 55,
+            "detail": {
+              "block_count": 1,
+              "blocks": [
+                {
+                  "cached": false,
+                  "chars": 30,
+                  "preview": "You are a test. <SECRET_REDACTED>"
+                }
+              ],
+              "cached": true,
+              "hash": "3f4992de85bbfe46",
+              "preview": "You are a test. <SECRET_REDACTED>",
+              "section_headers": [],
+              "sections": [
+                {
+                  "header": "(intro)",
+                  "text": "You are a test. <SECRET_REDACTED>"
+                }
+              ],
+              "total_bytes": 30,
+              "total_chars": 30
+            },
+            "key": "sys",
+            "label": "System Instructions"
+          },
+          {
+            "bytes": 67,
+            "detail": {
+              "count": 2,
+              "items": [
+                {
+                  "bytes": 34,
+                  "description": "",
+                  "input_schema_keys": [],
+                  "name": "Agent"
+                },
+                {
+                  "bytes": 33,
+                  "description": "",
+                  "input_schema_keys": [],
+                  "name": "Read"
+                }
+              ]
+            },
+            "key": "tools",
+            "label": "Tool Descriptions"
+          },
+          {
+            "bytes": 0,
+            "detail": {
+              "occurrences": 0,
+              "text": null
+            },
+            "key": "know",
+            "label": "Retrieved Knowledge"
+          },
+          {
+            "bytes": 0,
+            "detail": {
+              "count": 0,
+              "items": []
+            },
+            "key": "hist",
+            "label": "Conversation History"
+          },
+          {
+            "bytes": 0,
+            "detail": {
+              "count": 0,
+              "items": []
+            },
+            "key": "tout",
+            "label": "Tool Outputs"
+          },
+          {
+            "bytes": 29,
+            "detail": {
+              "count": 1,
+              "items": [
+                {
+                  "bytes": 29,
+                  "preview": "ping",
+                  "role": "user"
+                }
+              ]
+            },
+            "key": "user",
+            "label": "User Input"
+          }
+        ],
+        "est_tokens": 38,
+        "fresh_input_bytes": 29,
+        "knowledge_cadence": "per-prompt (UserPromptSubmit hook — once per user submission, then cached in history)",
+        "knowledge_occurrences": 0,
+        "knowledge_text": null,
+        "message_count": 1,
+        "model": "claude-sonnet-5",
+        "task_id": "task-beta",
+        "tool_count": 2,
+        "total_bytes": 151
+      },
+      "measurements/task-beta/context-turns.jsonl": [
+        {
+          "agent": "claude",
+          "cache_breakpoints": [],
+          "categories": [
+            {
+              "bytes": 55,
+              "detail": {
+                "block_count": 1,
+                "blocks": [
+                  {
+                    "cached": false,
+                    "chars": 30,
+                    "preview": "You are a test. <SECRET_REDACTED>"
+                  }
+                ],
+                "cached": true,
+                "hash": "3f4992de85bbfe46",
+                "preview": "You are a test. <SECRET_REDACTED>",
+                "section_headers": [],
+                "sections": [
+                  {
+                    "header": "(intro)",
+                    "text": "You are a test. <SECRET_REDACTED>"
+                  }
+                ],
+                "total_bytes": 30,
+                "total_chars": 30
+              },
+              "key": "sys",
+              "label": "System Instructions"
+            },
+            {
+              "bytes": 67,
+              "detail": {
+                "count": 2,
+                "items": [
+                  {
+                    "bytes": 34,
+                    "description": "",
+                    "input_schema_keys": [],
+                    "name": "Agent"
+                  },
+                  {
+                    "bytes": 33,
+                    "description": "",
+                    "input_schema_keys": [],
+                    "name": "Read"
+                  }
+                ]
+              },
+              "key": "tools",
+              "label": "Tool Descriptions"
+            },
+            {
+              "bytes": 0,
+              "detail": {
+                "occurrences": 0,
+                "text": null
+              },
+              "key": "know",
+              "label": "Retrieved Knowledge"
+            },
+            {
+              "bytes": 0,
+              "detail": {
+                "count": 0,
+                "items": []
+              },
+              "key": "hist",
+              "label": "Conversation History"
+            },
+            {
+              "bytes": 0,
+              "detail": {
+                "count": 0,
+                "items": []
+              },
+              "key": "tout",
+              "label": "Tool Outputs"
+            },
+            {
+              "bytes": 29,
+              "detail": {
+                "count": 1,
+                "items": [
+                  {
+                    "bytes": 29,
+                    "preview": "ping",
+                    "role": "user"
+                  }
+                ]
+              },
+              "key": "user",
+              "label": "User Input"
+            }
+          ],
+          "messages": [
+            {
+              "bytes": 31,
+              "i": 0,
+              "preview": "ping",
+              "role": "user",
+              "tool": null
+            }
+          ],
+          "model": "claude-sonnet-5",
+          "observation_ref": null,
+          "request_id": "req_6",
+          "task_id": "task-beta",
+          "ts": "<ts>",
+          "usage": {
+            "cache_read": 0,
+            "cache_write": 13,
+            "input": 7,
+            "output": 3
+          },
+          "wire": "anthropic"
+        }
+      ]
+    },
+    "response": {
+      "body": {
+        "content": [
+          {
+            "text": "pong",
+            "type": "text"
+          }
+        ],
+        "id": "msg_2",
+        "model": "claude-sonnet-5",
+        "type": "message",
+        "usage": {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 2,
+            "ephemeral_5m_input_tokens": 11
+          },
+          "cache_read_input_tokens": 0,
+          "input_tokens": 7,
+          "output_tokens": 3
+        }
+      },
+      "status": 200
+    },
+    "rows": [
+      {
+        "_rowid": 11,
+        "agent": "claude",
+        "attempt_trail": "",
+        "band_source": "route fg-chat/claude",
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 13,
+        "chain_position": 0,
+        "conversation_key": "7151a8ae6105",
+        "granularity_tier": "per-turn",
+        "id": 5,
+        "input_tokens": 7,
+        "latency_ms": "<volatile>",
+        "model": "claude-sonnet-5",
+        "model_raw": "claude-sonnet-5",
+        "offloaded_from": "",
+        "output_tokens": 3,
+        "overhead_ms": null,
+        "parent_call_id": "",
+        "process": "token-adapter-claude",
+        "project": "",
+        "prompt_preview": "ping",
+        "provider": "claude-code-max",
+        "reasoning_tokens": 0,
+        "route_band": "high",
+        "route_key": "fg-chat/claude",
+        "route_step": 1,
+        "routing_source": "live",
+        "subscription": "max-oauth-passthrough",
+        "task_id": "task-beta",
+        "timestamp": "<volatile>",
+        "tokens_estimated": 0,
+        "tool_call_id": "req_6",
+        "total_tokens": 10,
+        "turn_index": 1,
+        "user_hash": "cladpt"
+      }
+    ],
+    "scenario": "messages json, query string kept upstream",
+    "upstream": [
+      {
+        "body": {
+          "max_tokens": 64,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "ping",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "claude-sonnet-5",
+          "system": [
+            {
+              "text": "You are a test. sk-test-system",
+              "type": "text"
+            }
+          ],
+          "tools": [
+            {
+              "input_schema": {},
+              "name": "Agent"
+            },
+            {
+              "input_schema": {},
+              "name": "Read"
+            }
+          ]
+        },
+        "headers": {
+          "accept-encoding": "identity",
+          "content-type": "application/json",
+          "x-api-key": "sk-test-client",
+          "x-task-id": "task-beta"
+        },
+        "host": "api.anthropic.com",
+        "method": "POST",
+        "path": "/v1/messages?beta=true"
+      }
+    ]
+  },
+  {
+    "files": {},
+    "response": {
+      "body": {
+        "error": "foreground codex is routed to \"openai\" by defaults.fg-chat, but this endpoint is an Anthropic-protocol passthrough and \"openai\" has no fg_transport. Serving it needs an Anthropic<->OpenAI bridge, which is not implemented. Either route defaults.fg-chat to a provider with fg_transport, or use an agent that speaks the OpenAI shim.",
+        "route": {
+          "class": "fg-chat",
+          "complexity": "medium",
+          "complexitySource": "route defaults.fg-chat",
+          "matchedKey": "defaults.fg-chat",
+          "model": "gpt-4o-mini",
+          "provider": "openai",
+          "step": 3
+        },
+        "type": "ROUTE_NOT_IMPLEMENTED"
+      },
+      "status": 501
+    },
+    "rows": [],
+    "scenario": "messages, agent whose route has no fg transport → 501",
+    "upstream": []
+  },
+  {
+    "files": {},
+    "response": {
+      "body": {
+        "by_model": [
+          {
+            "avg_latency": "<volatile>",
+            "cache_read_tokens": 1200,
+            "cache_write_tokens": 186,
+            "calls": 6,
+            "model": "claude-sonnet-5",
+            "p50_latency_ms": "<volatile>",
+            "total_tokens": 104
+          },
+          {
+            "avg_latency": "<volatile>",
+            "cache_read_tokens": 500,
+            "cache_write_tokens": 0,
+            "calls": 5,
+            "model": "gpt-4o-mini-2024-07-18",
+            "p50_latency_ms": "<volatile>",
+            "total_tokens": 125
+          }
+        ],
+        "by_process": [
+          {
+            "avg_latency": "<volatile>",
+            "cache_read_tokens": 1200,
+            "cache_write_tokens": 173,
+            "calls": 5,
+            "input_tokens": 55,
+            "output_tokens": 39,
+            "process": "token-adapter-claude",
+            "total_tokens": 94
+          },
+          {
+            "avg_latency": "<volatile>",
+            "cache_read_tokens": 100,
+            "cache_write_tokens": 0,
+            "calls": 1,
+            "input_tokens": 20,
+            "output_tokens": 5,
+            "process": "copilot",
+            "total_tokens": 25
+          },
+          {
+            "avg_latency": "<volatile>",
+            "cache_read_tokens": 100,
+            "cache_write_tokens": 0,
+            "calls": 1,
+            "input_tokens": 20,
+            "output_tokens": 5,
+            "process": "mastra-chat",
+            "total_tokens": 25
+          },
+          {
+            "avg_latency": "<volatile>",
+            "cache_read_tokens": 100,
+            "cache_write_tokens": 0,
+            "calls": 1,
+            "input_tokens": 20,
+            "output_tokens": 5,
+            "process": "observation-writer",
+            "total_tokens": 25
+          },
+          {
+            "avg_latency": "<volatile>",
+            "cache_read_tokens": 200,
+            "cache_write_tokens": 0,
+            "calls": 2,
+            "input_tokens": 40,
+            "output_tokens": 10,
+            "process": "opencode",
+            "total_tokens": 50
+          },
+          {
+            "avg_latency": "<volatile>",
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 13,
+            "calls": 1,
+            "input_tokens": 7,
+            "output_tokens": 3,
+            "process": "token-adapter-pi",
+            "total_tokens": 10
+          }
+        ],
+        "by_provider": [
+          {
+            "cache_read_tokens": 1200,
+            "cache_write_tokens": 186,
+            "calls": 6,
+            "input_tokens": 62,
+            "output_tokens": 42,
+            "provider": "claude-code-max",
+            "total_tokens": 104
+          },
+          {
+            "cache_read_tokens": 500,
+            "cache_write_tokens": 0,
+            "calls": 5,
+            "input_tokens": 100,
+            "output_tokens": 25,
+            "provider": "openai",
+            "total_tokens": 125
+          }
+        ],
+        "hours": 24,
+        "scope": "both",
+        "total_cache_read": 1700,
+        "total_cache_write": 186,
+        "total_calls": 11,
+        "total_input": 162,
+        "total_output": 67,
+        "total_tokens": 229
+      },
+      "status": 200
+    },
+    "rows": [],
+    "scenario": "read: token-usage summary totals",
+    "upstream": []
+  },
+  {
+    "files": {},
+    "response": {
+      "body": {
+        "data": [
+          {
+            "agent": "claude",
+            "attempt_trail": "",
+            "band_source": "route fg-chat/claude",
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 13,
+            "chain_position": 0,
+            "conversation_key": "7151a8ae6105",
+            "granularity_tier": "per-turn",
+            "id": 5,
+            "input_tokens": 7,
+            "latency_ms": "<volatile>",
+            "model": "claude-sonnet-5",
+            "model_raw": "claude-sonnet-5",
+            "offloaded_from": "",
+            "output_tokens": 3,
+            "overhead_ms": null,
+            "parent_call_id": "",
+            "process": "token-adapter-claude",
+            "project": "",
+            "prompt_preview": "ping",
+            "provider": "claude-code-max",
+            "reasoning_tokens": 0,
+            "route_band": "high",
+            "route_key": "fg-chat/claude",
+            "route_step": 1,
+            "routing_source": "live",
+            "subscription": "max-oauth-passthrough",
+            "task_id": "task-beta",
+            "timestamp": "<volatile>",
+            "tokens_estimated": 0,
+            "tool_call_id": "req_6",
+            "total_tokens": 10,
+            "turn_index": 1,
+            "user_hash": "cladpt"
+          },
+          {
+            "agent": "mastra",
+            "attempt_trail": "",
+            "band_source": "route defaults.background",
+            "cache_read_tokens": 100,
+            "cache_write_tokens": 0,
+            "chain_position": 0,
+            "conversation_key": "",
+            "granularity_tier": "",
+            "id": 1,
+            "input_tokens": 20,
+            "latency_ms": "<volatile>",
+            "model": "gpt-4o-mini-2024-07-18",
+            "model_raw": "gpt-4o-mini-2024-07-18",
+            "offloaded_from": "",
+            "output_tokens": 5,
+            "overhead_ms": null,
+            "parent_call_id": "",
+            "process": "mastra-chat",
+            "project": "",
+            "prompt_preview": "ping <SECRET_REDACTED>",
+            "provider": "openai",
+            "reasoning_tokens": 0,
+            "route_band": "small",
+            "route_key": "defaults.background",
+            "route_step": 3,
+            "routing_source": "live",
+            "subscription": "openai-api",
+            "task_id": "span-global",
+            "timestamp": "<volatile>",
+            "tokens_estimated": 0,
+            "tool_call_id": "",
+            "total_tokens": 25,
+            "turn_index": 0,
+            "user_hash": "mstadt"
+          },
+          {
+            "agent": "",
+            "attempt_trail": "",
+            "band_source": "route defaults.background",
+            "cache_read_tokens": 100,
+            "cache_write_tokens": 0,
+            "chain_position": 0,
+            "conversation_key": "",
+            "granularity_tier": "",
+            "id": 1,
+            "input_tokens": 20,
+            "latency_ms": "<volatile>",
+            "model": "gpt-4o-mini-2024-07-18",
+            "model_raw": "gpt-4o-mini-2024-07-18",
+            "offloaded_from": "",
+            "output_tokens": 5,
+            "overhead_ms": null,
+            "parent_call_id": "",
+            "process": "observation-writer",
+            "project": "",
+            "prompt_preview": "ping",
+            "provider": "openai",
+            "reasoning_tokens": 0,
+            "route_band": "small",
+            "route_key": "defaults.background",
+            "route_step": 3,
+            "routing_source": "live",
+            "subscription": "openai-api",
+            "task_id": "",
+            "timestamp": "<volatile>",
+            "tokens_estimated": 0,
+            "tool_call_id": "",
+            "total_tokens": 25,
+            "turn_index": 0,
+            "user_hash": "tester"
+          }
+        ],
+        "scope": "both"
+      },
+      "status": 200
+    },
+    "rows": [],
+    "scenario": "read: token-usage recent",
+    "upstream": []
+  },
+  {
+    "files": {},
+    "response": {
+      "body": {
+        "months": 1,
+        "rows": [
+          {
+            "cache_read_tokens": 1200,
+            "cache_write_tokens": 173,
+            "calls": 5,
+            "estimated_calls": 0,
+            "input_tokens": 55,
+            "model": "claude-sonnet-5",
+            "output_tokens": 39,
+            "process": "token-adapter-claude",
+            "provider": "claude-code-max",
+            "scope": "fg",
+            "subscription": "max-oauth-passthrough"
+          },
+          {
+            "cache_read_tokens": 200,
+            "cache_write_tokens": 0,
+            "calls": 2,
+            "estimated_calls": 0,
+            "input_tokens": 40,
+            "model": "gpt-4o-mini-2024-07-18",
+            "output_tokens": 10,
+            "process": "opencode",
+            "provider": "openai",
+            "scope": "fg",
+            "subscription": "openai-api"
+          },
+          {
+            "cache_read_tokens": 100,
+            "cache_write_tokens": 0,
+            "calls": 1,
+            "estimated_calls": 0,
+            "input_tokens": 20,
+            "model": "gpt-4o-mini-2024-07-18",
+            "output_tokens": 5,
+            "process": "copilot",
+            "provider": "openai",
+            "scope": "fg",
+            "subscription": "openai-api"
+          },
+          {
+            "cache_read_tokens": 100,
+            "cache_write_tokens": 0,
+            "calls": 1,
+            "estimated_calls": 0,
+            "input_tokens": 20,
+            "model": "gpt-4o-mini-2024-07-18",
+            "output_tokens": 5,
+            "process": "mastra-chat",
+            "provider": "openai",
+            "scope": "bg",
+            "subscription": "openai-api"
+          },
+          {
+            "cache_read_tokens": 100,
+            "cache_write_tokens": 0,
+            "calls": 1,
+            "estimated_calls": 0,
+            "input_tokens": 20,
+            "model": "gpt-4o-mini-2024-07-18",
+            "output_tokens": 5,
+            "process": "observation-writer",
+            "provider": "openai",
+            "scope": "bg",
+            "subscription": "openai-api"
+          },
+          {
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 13,
+            "calls": 1,
+            "estimated_calls": 0,
+            "input_tokens": 7,
+            "model": "claude-sonnet-5",
+            "output_tokens": 3,
+            "process": "token-adapter-pi",
+            "provider": "claude-code-max",
+            "scope": "fg",
+            "subscription": "max-oauth-passthrough"
+          }
+        ]
+      },
+      "status": 200
+    },
+    "rows": [],
+    "scenario": "read: token-usage cost",
+    "upstream": []
+  }
+]

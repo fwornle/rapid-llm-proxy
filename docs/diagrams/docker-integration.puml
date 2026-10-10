@@ -1,0 +1,74 @@
+@startuml docker-integration
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam componentStyle rectangle
+skinparam defaultFontName "Segoe UI"
+skinparam shadowing false
+skinparam roundCorner 8
+
+title LLM Proxy — Docker Integration Pattern
+
+rectangle "Host (macOS / Linux)" as host #E8F5E9 {
+
+  rectangle "LLM Proxy Bridge Server" as bridge #A5D6A7 {
+    portin "0.0.0.0:12435" as port
+    component "Auto-Route" as route
+    component "VPN Detection" as vpn
+    component "Provider Registry" as reg
+
+    route --> vpn : "check\nnetwork"
+    route --> reg : "select\nprovider"
+  }
+
+  file "~/.local/share/opencode/auth.json" as auth #FFF9C4
+  file "~/.config/rapid-llm-proxy/llm-proxy.yaml" as yaml #FFF9C4
+  note bottom of auth
+    OAuth tokens for
+    Copilot, GitHub, etc.
+    Mounted read-only
+    into containers
+  end note
+
+  bridge --> auth : reads
+  bridge --> yaml : reads
+}
+
+rectangle "Docker Network (bridge)" as dnet #E3F2FD {
+
+  rectangle "Service A\n(OKB / Knowledge Graph)" as svcA #BBDEFB {
+    component "LLMService\n(@rapid/llm-proxy)" as llmA
+  }
+
+  rectangle "Service B\n(Observation Writer)" as svcB #BBDEFB {
+    component "HTTP Client" as httpB
+  }
+
+  rectangle "Service C\n(Custom App)" as svcC #BBDEFB {
+    component "curl / fetch" as httpC
+  }
+}
+
+' Docker → Host connections
+llmA --> port : "POST /api/complete\nhost.docker.internal:12435"
+httpB --> port : "POST /api/complete\nhost.docker.internal:12435"
+httpC --> port : "POST /api/complete\nhost.docker.internal:12435"
+
+cloud "LLM Providers" as ext #F3E5F5 {
+  rectangle "Copilot" as cop #CE93D8
+  rectangle "Claude CLI" as cla #CE93D8
+  rectangle "Groq / OpenAI /\nAnthropic APIs" as apis #E1BEE7
+}
+
+bridge --> cop
+bridge --> cla
+bridge --> apis
+
+note bottom of dnet
+  **Docker Compose config:**
+  ""extra_hosts:""
+  ""  - "host.docker.internal:host-gateway"""
+  ""environment:""
+  ""  - LLM_PROXY_URL=http://host.docker.internal:12435""
+end note
+
+@enduml

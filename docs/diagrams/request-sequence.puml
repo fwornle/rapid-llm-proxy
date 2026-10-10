@@ -1,0 +1,57 @@
+@startuml request-sequence
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName "Segoe UI"
+skinparam shadowing false
+skinparam sequenceMessageAlign center
+
+title LLM Proxy — Request Lifecycle (Docker → Host → Provider)
+
+participant "Docker Service\n(OKB)" as docker #BBDEFB
+participant "LLM Proxy Bridge\n(host:12435)" as proxy #A5D6A7
+participant "VPN Detect" as vpn #FFF9C4
+participant "Provider\nRegistry" as reg #FFF9C4
+participant "Copilot API\n(Enterprise)" as copilot #CE93D8
+
+docker -> proxy : POST /api/complete\n{ messages: [...], model: "sonnet" }
+activate proxy
+
+proxy -> vpn : detectNetworkMode()
+vpn --> proxy : "vpn"
+
+proxy -> reg : getAvailableProviders("vpn")
+reg --> proxy : ["copilot", "claude-code"]
+
+proxy -> proxy : auto-route → select "copilot"
+proxy -> proxy : resolveModel("sonnet") → "claude-sonnet-4.6"
+
+proxy -> copilot : POST /chat/completions\nAuthorization: Bearer <oauth-token>\n{ model: "claude-sonnet-4.6", messages: [...] }
+activate copilot
+copilot --> proxy : 200 OK\n{ choices: [{ message: { content: "..." } }] }
+deactivate copilot
+
+proxy --> docker : 200 OK\n{ text: "...", model: "claude-sonnet-4.6",\n  provider: "copilot", tokens: { ... } }
+deactivate proxy
+
+== Error / Fallback Path ==
+
+docker -> proxy : POST /api/complete\n{ messages: [...] }
+activate proxy
+
+proxy -> copilot : POST /chat/completions
+activate copilot
+copilot --> proxy : 429 Rate Limited
+deactivate copilot
+
+proxy -> proxy : fallback → next provider "claude-code"
+
+participant "Claude CLI" as cli #CE93D8
+proxy -> cli : claude -p "..." --model sonnet
+activate cli
+cli --> proxy : "response text"
+deactivate cli
+
+proxy --> docker : 200 OK\n{ text: "...", provider: "claude-code" }
+deactivate proxy
+
+@enduml

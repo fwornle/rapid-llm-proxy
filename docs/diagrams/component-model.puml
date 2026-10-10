@@ -1,0 +1,127 @@
+@startuml component-model
+!include _standard-style.puml
+skinparam componentStyle rectangle
+
+title LLM Proxy — Component Model (v2.0)
+
+' Color legend: Blue=host calls, Orange=Docker→host, Green=outbound LLM,
+' Purple=config reads, Teal=token-usage/settings dataplane, Red=reaping.
+
+frame "Host Machine" as host {
+    component "Coding Agent\n(OpenCode / Cursor / VS Code)" as agent
+
+    package "@rapid/llm-proxy (npm)" as npm {
+        component "LLMService" as svc
+        component "ProviderRegistry" as reg
+        component "Network Detector" as netdet
+        component "Config Loader" as cfg
+
+        package "Providers" as provs {
+            component "CopilotProvider" as cop
+            component "ClaudeCodeProvider" as cc
+            component "GroqProvider" as groq
+            component "OpenAIProvider" as oai
+            component "AnthropicProvider" as anth
+        }
+    }
+
+    package "Bridge Server (:12435)" as bridge_pkg {
+        component "HTTP Server\n(server.mjs)" as bridge
+        component "SettingsStore\n(per-process pins)" as settings
+        component "TokenUsageStore\n(SQLite)" as tokendb
+        component "JSON Exporter\n(2s debounce)" as exporter
+        component "Client-Disconnect\nReaper" as reaper
+    }
+
+    file "auth.json\n(OAuth tokens)" as auth
+    file "llm-providers.yaml" as yaml
+    file "token-usage.json\n(git-trackable)" as tokenjson
+    file "settings.json\n(persisted pins)" as settingsjson
+}
+
+frame "Health Dashboard" as dash {
+    component "Token Usage page" as tokenpage
+    component "Settings dialog" as settingsdlg
+}
+
+frame "Docker Network" as docker {
+    component "obs-api\n(Knowledge Extractor)" as okb
+    component "Observation Writer" as obs
+    component "Custom Service\n(Python / Go / ...)" as custom
+}
+
+cloud "External APIs" as ext {
+    component "copilot-api.*.com" as copapi
+    component "api.groq.com" as groqapi
+    component "api.openai.com" as oaiapi
+    component "api.anthropic.com" as anthapi
+}
+
+agent -[#2196F3]-> svc : "import"
+svc -[#2196F3]-> reg
+reg -[#2196F3]-> netdet : "detect VPN"
+reg -[#2196F3]-> cfg : "load YAML"
+reg -[#2196F3]-> provs
+
+cfg -[#9C27B0]-> yaml : "read"
+cop -[#9C27B0]-> auth : "read tokens"
+settings -[#9C27B0]-> settingsjson : "load + persist"
+
+bridge -[#2196F3]-> reg : "delegates"
+okb -[#FF9800]-> bridge : "POST /api/complete\nhost.docker.internal:12435"
+obs -[#FF9800]-> bridge : "POST /api/complete"
+custom -[#FF9800]-> bridge : "POST /api/complete"
+
+bridge -[#009688]-> tokendb : "logCall()\n(per completion)"
+tokendb -[#009688]-> exporter : "schedule"
+exporter -[#009688]-> tokenjson : "debounced write\n+ safety merge"
+bridge -[#009688]-> settings : "check pin\n(per request)"
+tokenpage -[#009688]-> bridge : "GET /api/token-usage/\n{summary, recent}"
+settingsdlg -[#009688]-> bridge : "GET / PUT /api/llm/settings"
+
+bridge -[#F44336]-> reaper : "res.on('close')"
+reaper -[#F44336]-> cc : "SIGTERM claude CLI"
+
+cop -[#4CAF50]-> copapi : "HTTPS\n(CONNECT tunnel)"
+groq -[#4CAF50]-> groqapi : "HTTPS"
+oai -[#4CAF50]-> oaiapi : "HTTPS"
+anth -[#4CAF50]-> anthapi : "HTTPS"
+
+legend bottom right
+  | <#2196F3>  | Host-local process calls |
+  | <#FF9800>  | Docker -> Host bridge |
+  | <#4CAF50>  | Outbound to LLM provider |
+  | <#9C27B0>  | Config / file reads |
+  | <#009688>  | Token-usage / settings dataplane |
+  | <#F44336>  | Client-disconnect reaping |
+endlegend
+
+note right of netdet
+  Checks network interfaces
+  for VPN tunnels (utun/tun/ppp).
+  On corporate: disable groq/oai/anth.
+  On public: full provider chain.
+end note
+
+note bottom of tokendb
+  One row per completion:
+  provider, model, process,
+  input/output tokens, latency,
+  prompt preview (XML-stripped).
+end note
+
+note top of settings
+  Per-process pin is a hard override:
+  wins over body.provider, falls
+  through to auto-route only if the
+  pinned provider is unreachable.
+end note
+
+note bottom of reaper
+  When res.on('close') fires,
+  reqAbort.abort() propagates to
+  the in-flight fetch and kills
+  any spawned claude CLI subprocess.
+end note
+
+@enduml

@@ -1,0 +1,114 @@
+@startuml deployment
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam shadowing false
+skinparam defaultFontName "Helvetica"
+skinparam nodeStyle rectangle
+
+title LLM Proxy — Deployment Topology
+
+' ── Color legend ──────────────────────────
+' Blue    #2196F3  Host-local process calls
+' Orange  #FF9800  Docker → Host bridge
+' Green   #4CAF50  Outbound to LLM providers
+' Purple  #9C27B0  Config / file reads
+' Red     #F44336  Corporate proxy tunnel
+
+node "Developer Workstation" as ws {
+    
+    rectangle "Host OS" as hostos {
+        artifact "auth.json" as authfile
+        artifact "llm-providers.yaml" as yamlfile
+        
+        rectangle "Coding Agent Process" as agentproc {
+            component "OpenCode / Cursor / VS Code" as ide
+            component "LLMService\n(@rapid/llm-proxy)" as llmsvc
+        }
+        
+        rectangle "Bridge Server Process" as bridgeproc {
+            component "HTTP Server\n0.0.0.0:12435" as httpsvr
+            component "ProviderRegistry" as provreg
+        }
+        
+        rectangle "Corporate Proxy\n(proxydetox / pac)" as corpproxy
+    }
+    
+    rectangle "Docker Compose" as dcomp {
+        rectangle "OKB Container" as okbc {
+            component "Knowledge Extractor" as kex
+            component "LLMService\n(npm import)" as okbllm
+        }
+        
+        rectangle "Dashboard Container" as dashc {
+            component "Observation Writer" as obsw
+        }
+        
+        rectangle "Custom Container" as cc {
+            component "Python / Go Service" as pysvc
+        }
+    }
+}
+
+cloud "Internet" as inet {
+    rectangle "Copilot API" as copapi {
+        component "copilot-api.enterprise.com" as copent
+        component "api.individual.githubcopilot.com" as copind
+    }
+    
+    rectangle "Public LLM APIs" as pubapi {
+        component "api.groq.com" as groqapi
+        component "api.openai.com" as oaiapi
+        component "api.anthropic.com" as anthapi
+    }
+}
+
+' Host-side integrations (blue)
+ide -[#2196F3]-> llmsvc : import
+llmsvc -[#2196F3]..> provreg
+
+' Docker → Bridge (orange)
+kex -[#FF9800]-> httpsvr : "host.docker.internal:12435"
+obsw -[#FF9800]-> httpsvr : "host.docker.internal:12435"
+pysvc -[#FF9800]-> httpsvr : "host.docker.internal:12435"
+
+' OKB can also use npm directly if on host
+okbllm -[#2196F3]..> provreg : "direct (if on host)"
+
+' Bridge internal (blue)
+httpsvr -[#2196F3]-> provreg
+
+' Config reads (purple)
+provreg -[#9C27B0]-> authfile : read
+provreg -[#9C27B0]-> yamlfile : read
+
+' Corporate proxy tunnel (red)
+provreg -[#F44336]-> corpproxy : CONNECT
+corpproxy -[#F44336]-> copent : tunnel
+
+' Direct HTTPS to providers (green)
+provreg -[#4CAF50]-> copind : direct HTTPS
+provreg -[#4CAF50]-> groqapi : direct HTTPS
+provreg -[#4CAF50]-> oaiapi : direct HTTPS
+provreg -[#4CAF50]-> anthapi : direct HTTPS
+
+legend bottom right
+  | <#2196F3>  | Host-local process calls |
+  | <#FF9800>  | Docker → Host bridge |
+  | <#4CAF50>  | Direct HTTPS to provider |
+  | <#F44336>  | Corporate proxy tunnel |
+  | <#9C27B0>  | Config / file reads |
+endlegend
+
+note bottom of corpproxy
+    On VPN: CONNECT tunnel through
+    corporate proxy (HTTPS_PROXY).
+    Required for enterprise Copilot.
+end note
+
+note bottom of pubapi
+    Blocked on VPN.
+    Only accessible on
+    public networks.
+end note
+
+@enduml

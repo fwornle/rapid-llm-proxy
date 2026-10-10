@@ -1,17 +1,18 @@
 /**
  * Network Detection Module
  *
- * Detects VPN/Corporate Network vs Public network.
+ * Detects Corporate Network (CN/VPN) vs Public network.
  * Used to select appropriate provider priority chains from network_overrides in YAML config.
  *
  * Detection signals (ordered by reliability):
- *   1. Environment variable override: LLM_NETWORK_MODE=vpn|public
- *   2. VPN tunnel interfaces (utun*/tun*/ppp*) with private-range routes
- *   3. DNS resolution of a configurable probe hostname → private IP
+ *   1. Environment variable override: LLM_NETWORK_MODE=corporate|public
+ *   2. VPN tunnel interfaces (utun, tun, ppp, wg) with private-range routes
+ *   3. DNS resolution of a configurable probe hostname → corporate IP
  *
  * Configuration:
- *   LLM_NETWORK_MODE    — force "vpn" or "public" (skips all detection)
- *   LLM_VPN_PROBE_HOST  — hostname to resolve for VPN detection
+ *   LLM_NETWORK_MODE    — force "corporate" or "public" (skips all detection)
+ *                          Legacy value "vpn" is accepted as alias for "corporate".
+ *   LLM_VPN_PROBE_HOST  — hostname to resolve for corporate network detection
  *                          (e.g. "ghe.mycompany.com", "vpn-gateway.corp.example.com")
  *                          If unset, only interface-based detection is used.
  *
@@ -21,7 +22,7 @@
 import { execSync } from 'child_process';
 import { resolve as dnsResolve } from 'dns';
 
-export type NetworkMode = 'vpn' | 'public';
+export type NetworkMode = 'corporate' | 'public';
 
 /** Cached result (detection is expensive, network rarely changes mid-session) */
 let cachedMode: NetworkMode | null = null;
@@ -35,9 +36,8 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // Re-check every 5 minutes
 export async function detectNetworkMode(): Promise<NetworkMode> {
   // 1. Explicit env var override — always wins
   const envOverride = process.env.LLM_NETWORK_MODE?.toLowerCase();
-  if (envOverride === 'vpn' || envOverride === 'public') {
-    return envOverride;
-  }
+  if (envOverride === 'vpn' || envOverride === 'corporate') return 'corporate';
+  if (envOverride === 'public') return 'public';
 
   // 2. Check cache
   if (cachedMode && (Date.now() - cacheTimestamp) < CACHE_TTL_MS) {
@@ -57,9 +57,8 @@ export async function detectNetworkMode(): Promise<NetworkMode> {
  */
 export function detectNetworkModeSync(): NetworkMode {
   const envOverride = process.env.LLM_NETWORK_MODE?.toLowerCase();
-  if (envOverride === 'vpn' || envOverride === 'public') {
-    return envOverride;
-  }
+  if (envOverride === 'vpn' || envOverride === 'corporate') return 'corporate';
+  if (envOverride === 'public') return 'public';
 
   if (cachedMode && (Date.now() - cacheTimestamp) < CACHE_TTL_MS) {
     return cachedMode;
@@ -89,22 +88,22 @@ function getProbeHost(): string | null {
 
 async function doDetect(): Promise<NetworkMode> {
   // Signal 1: Check for VPN tunnel interfaces
-  if (hasVpnInterface()) return 'vpn';
+  if (hasVpnInterface()) return 'corporate';
 
   // Signal 2: DNS resolution of configurable probe host → private IP
   const probeHost = getProbeHost();
-  if (probeHost && await resolvesToPrivateIP(probeHost)) return 'vpn';
+  if (probeHost && await resolvesToPrivateIP(probeHost)) return 'corporate';
 
   return 'public';
 }
 
 function doDetectSync(): NetworkMode {
   // Signal 1: Check for VPN tunnel interfaces
-  if (hasVpnInterface()) return 'vpn';
+  if (hasVpnInterface()) return 'corporate';
 
   // Signal 2: DNS probe (sync via dig)
   const probeHost = getProbeHost();
-  if (probeHost && digResolvesToPrivateIP(probeHost)) return 'vpn';
+  if (probeHost && digResolvesToPrivateIP(probeHost)) return 'corporate';
 
   return 'public';
 }
@@ -150,7 +149,7 @@ function resolvesToPrivateIP(hostname: string): Promise<boolean> {
         resolve(false);
         return;
       }
-      resolve(addresses.some(isPrivateIP));
+      resolve(addresses.some(isCorporateIP));
     });
   });
 }
@@ -162,16 +161,17 @@ function digResolvesToPrivateIP(hostname: string): boolean {
   try {
     const result = execSync(`dig +short ${hostname} 2>/dev/null`, { encoding: 'utf8', timeout: 3000 });
     const ips = result.trim().split('\n').filter(line => /^\d+\.\d+\.\d+\.\d+$/.test(line));
-    return ips.some(isPrivateIP);
+    return ips.some(isCorporateIP);
   } catch {
     return false;
   }
 }
 
 /**
- * Check if an IP address is in a private range (RFC 1918 + RFC 6598)
+ * Check if an IP address is in a corporate/private range.
+ * Includes RFC 1918, RFC 6598 (CGNAT).
  */
-function isPrivateIP(ip: string): boolean {
+function isCorporateIP(ip: string): boolean {
   const parts = ip.split('.').map(Number);
   if (parts.length !== 4 || parts.some(p => isNaN(p))) return false;
   // 10.0.0.0/8

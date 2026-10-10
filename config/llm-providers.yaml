@@ -1,4 +1,26 @@
-# Unified LLM Provider Configuration
+# ┌──────────────────────────────────────────────────────────────────────────┐
+# │ THIS FILE DOES NOT CONTROL THE PROXY.                                    │
+# │                                                                          │
+# │ Routing for everything that goes through the llm-proxy daemon — every    │
+# │ coding agent's foreground conversation and every background cognitive    │
+# │ service — is decided by:                                                 │
+# │                                                                          │
+# │     config/llm-routing.yaml     which provider and model                 │
+# │     config/llm-fallback.yaml    what happens when that fails             │
+# │                                                                          │
+# │ proxy-bridge/server.mjs reads those two and nothing else. It has never   │
+# │ read this file: it contains no YAML parsing at all. For a long time this │
+# │ file's provider_priority / network_overrides / task_provider_priority    │
+# │ LOOKED like the routing policy while having no effect on a single call,  │
+# │ which is most of why routing became impossible to reason about.          │
+# │                                                                          │
+# │ What this file IS: configuration for the @rapid/llm-proxy SDK when it is │
+# │ embedded in a process WITHOUT a proxy in front of it (LLM_PROXY_ONLY=0). │
+# │ In the normal deployment the SDK short-circuits to the proxy provider    │
+# │ and the priority tables below are inert.                                 │
+# └──────────────────────────────────────────────────────────────────────────┘
+#
+# Unified LLM Provider Configuration (SDK standalone fallback)
 # Merged from model-tiers.yaml + dmr-config.yaml with new providers
 # Version: 1.0
 
@@ -25,7 +47,10 @@ providers:
     models:
       fast: "claude-haiku-4.5"
       standard: "claude-sonnet-4.6"    # Updated: 4.6 available via enterprise
-      premium: "claude-opus-4.6"
+      # Copilot's OWN catalogue serves opus (verified via `opencode models`);
+      # the proxy's gh-copilot leg rejects every opus id, so this tier is only
+      # reachable on the direct/standalone path this file configures.
+      premium: "claude-opus-5"
     quotaTracking:
       enabled: true
       softLimitPerHour: 100
@@ -40,8 +65,8 @@ providers:
   anthropic:
     apiKeyEnvVar: ANTHROPIC_API_KEY
     fast: "claude-haiku-4-5"            # $1/$5 per MTok, fastest
-    standard: "claude-sonnet-4-5"       # $3/$15 per MTok, fast + intelligent
-    premium: "claude-opus-4-6"          # $5/$25 per MTok, most intelligent
+    standard: "claude-sonnet-5"         # $3/$15 per MTok, fast + intelligent
+    premium: "claude-opus-5"            # $5/$25 per MTok, most intelligent
 
   openai:
     apiKeyEnvVar: OPENAI_API_KEY

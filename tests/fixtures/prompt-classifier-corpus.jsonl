@@ -1,0 +1,48 @@
+{"label":"small","text":"how many r's in strawberry"}
+{"label":"small","text":"what's the capital of Australia?"}
+{"label":"small","text":"convert 98.6 fahrenheit to celsius"}
+{"label":"small","text":"what does the acronym CORS stand for?"}
+{"label":"small","text":"give me a one-line git command to see the current branch"}
+{"label":"small","text":"what year was TypeScript first released?"}
+{"label":"small","text":"format this as a bulleted list: apples, pears, plums"}
+{"label":"small","text":"is 1729 a prime number?"}
+{"label":"small","text":"what port does postgres listen on by default?"}
+{"label":"small","text":"spell 'accommodate' backwards"}
+{"label":"small","text":"what's the difference between == and === in JavaScript?"}
+{"label":"small","text":"give me the ISO date format string for 2026-08-31"}
+{"label":"small","text":"how do I exit vim"}
+{"label":"small","text":"what unit is Wh short for?"}
+{"label":"small","text":"translate 'good morning' into Hungarian"}
+{"label":"small","text":"what's the shell command to list files by size?"}
+{"label":"medium","text":"write a function that debounces a callback and cancels on unmount"}
+{"label":"medium","text":"explain how prompt caching changes token accounting on the OpenAI wire"}
+{"label":"medium","text":"add a --dry-run flag to this script so it prints what it would write"}
+{"label":"medium","text":"why does my useEffect run twice in development?"}
+{"label":"medium","text":"write a SQL query that returns the top 5 processes by token spend per day"}
+{"label":"medium","text":"add unit tests covering the empty and single-element cases for this parser"}
+{"label":"medium","text":"explain what a git rebase --onto actually does, with an example"}
+{"label":"medium","text":"turn this callback-based function into an async one"}
+{"label":"medium","text":"write a regex that matches semantic version strings with optional pre-release"}
+{"label":"medium","text":"how should I structure the error handling in this express route?"}
+{"label":"medium","text":"summarise what changed in this file and whether the tests still cover it"}
+{"label":"medium","text":"add pagination to this endpoint, keeping the existing response shape"}
+{"label":"high","text":"the dashboard shows stale token totals after a restart and I cannot tell whether the writer, the cache or the exporter is behind — work out which"}
+{"label":"high","text":"refactor the routing layer so provider selection and fallback are separately testable without breaking the existing config format"}
+{"label":"high","text":"we are seeing intermittent SIGKILLs on one container every thirty seconds; find the cause"}
+{"label":"high","text":"design the migration path from the single-owner LevelDB store to a multi-writer setup without losing history"}
+{"label":"high","text":"there is a race between the coordinator respawning the writer and the writer taking its singleton lock — fix it properly"}
+{"label":"high","text":"audit every place that reads the token usage table and make the cache columns additive across providers"}
+{"label":"high","text":"our tests pass locally and fail in CI on arithmetic in a bash script; explain why and fix it for both platforms"}
+{"label":"high","text":"split this 4000-line server file into modules without changing any observable behaviour"}
+{"label":"medium","text":"then update the README and finally push the branch"}
+{"label":"medium","text":"read src/lib/utils.ts and tell me what cn() does"}
+{"label":"medium","text":"what's wrong with this? ```js\nconst x = [1,2,3].map(async n => await f(n))\n```"}
+{"label":"small","text":"what does HTTP 429 mean?"}
+{"label":"small","text":"give me a uuid v4"}
+{"label":"small","text":"what's 15% of 240?"}
+{"label":"medium","text":"debug why this returns undefined"}
+{"label":"medium","text":"migrate this component from class syntax to hooks"}
+{"label":"small","text":"list the days of the week in German"}
+{"label":"small","text":"what's the plural of 'index'?"}
+{"label":"medium","text":"write a bash one-liner that finds all files over 100MB and prints them sorted"}
+{"label":"small","text":"what does the -p flag do in mkdir?"}

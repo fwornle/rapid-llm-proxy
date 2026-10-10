@@ -1,0 +1,144 @@
+# llm-fallback.yaml — WHAT HAPPENS when the routed provider cannot serve the call.
+#
+# Sibling of llm-routing.yaml. Together they are the only source of routing
+# behaviour; proxy-bridge/routing-config.mjs reads them and server.mjs obeys.
+#
+# ── The rule this file exists to enforce ─────────────────────────────────────
+# Fallback used to be hardcoded in server.mjs as a network-dependent
+# `preferenceOrder` array, plus a heuristic that promoted claude-code above
+# copilot when copilot's enterprise host looked unreachable, plus a special case
+# that carried the pinned model across "Claude-family" providers. Three
+# mechanisms, none visible from any config file, that between them decided where
+# your calls actually went. All three are gone. What is left is this file.
+#
+# ── Sensors vs policy ────────────────────────────────────────────────────────
+# `detectNetworkMode()` still exists in server.mjs, but it is now a SENSOR: it
+# reports `public` or `corporate` and decides nothing. The `when:` guards below
+# are the policy. That separation is the point — a sensor you can read is
+# debuggable; a sensor wired straight into a chain order is not.
+
+version: 1
+
+# ── Chains ───────────────────────────────────────────────────────────────────
+#
+# Keyed by the provider the route chose. The value is the ordered list of
+# providers to try AFTER it, first to last. The head is never repeated here.
+#
+# Chains are NOT recursive: falling back from A to B does not then consult B's
+# own chain. One route means one flat, fully-visible list of at most a few
+# attempts — not a graph you have to trace.
+#
+# A candidate carrying a `when:` guard is SKIPPED when the guard does not hold;
+# it is not an error and the chain continues. A candidate with no guard is
+# always eligible. Guards available today: `network` (public | corporate).
+
+chains:
+
+  gh-copilot:
+    # The corporate Copilot contract has a hard monthly cap. When it refuses
+    # inference — quota_exceeded, a 402, or the enterprise host being down — fall
+    # back to the personal Max subscription, which has no metered cost.
+    #
+    # Guarded on `public` because the claude-code path is firewall-blocked inside
+    # the corporate network / CN: offering it there would turn one failed call
+    # into two. Inside corporate the chain skips straight to groq.
+    - provider: claude-code-max
+      when:
+        network: [ public ]
+    - provider: groq
+    - provider: openai
+    # Last resort, and the ONLY entry in this chain that can serve a request
+    # carrying tools[]. The three above cannot: claude-code-max and groq declare
+    # `tools: false`, so enforce_capabilities removes them, and openai is the one
+    # tools-capable hop — which makes this chain a single point of failure for
+    # every tool-using agent (pi, opencode) the moment one account is exhausted.
+    # That is exactly the outage enforce_capabilities' own comment warns about:
+    # "the fix for that outage is to have more than one capable provider".
+    #
+    # Placed LAST on purpose: it is metered, whereas claude-code-max is not, so
+    # it must never win a race against the subscription for ordinary toolless
+    # traffic. Move it above `openai` if you would rather pay for Claude than
+    # gpt-4o on a tools request.
+    #
+    # Inert until a key exists: an unconfigured provider is skipped as
+    # provider_unavailable, so adding it here changes nothing today.
+    - provider: anthropic-api
+
+  claude-code-max:
+    # The reverse direction, for background work that is routed to Max first.
+    - provider: gh-copilot
+
+  groq:
+    - provider: openai
+
+  openai:
+    - provider: groq
+
+  anthropic-api:
+    - provider: claude-code-max
+      when:
+        network: [ public ]
+    - provider: gh-copilot
+
+  qwen-local:
+    # Used when a route names the on-prem cluster DIRECTLY. The semantic-routing
+    # offload does not need this chain: it inserts the provider the route itself
+    # named as the first fallback, ahead of everything here, so an offloaded call
+    # degrades to the account it would have used anyway rather than to a generic
+    # order chosen once for all of them.
+    #
+    # gh-copilot first because it is the only always-reachable tools-capable
+    # account on the corporate network, which is the only network the cluster
+    # answers on in the first place. claude-code-max is guarded `public` for the
+    # same reason it is in the gh-copilot chain: it is firewall-blocked inside
+    # corporate/CN, so offering it there turns one failed call into two.
+    - provider: gh-copilot
+    - provider: claude-code-max
+      when:
+        network: [ public ]
+
+  # ── When to advance the chain ────────────────────────────────────────────────
+  #
+  # ONLY these failure classes cause a fallback. Everything else — a 400 for a
+  # malformed request, a 401, a content-policy refusal, a genuine model error —
+  # surfaces to the caller verbatim. Retrying a caller's bug on three providers
+  # just burns three quotas and hides the bug.
+  #
+  #   quota_exhausted       provider refused on billing/quota grounds (402, quota_exceeded)
+  #   provider_unavailable  provider not configured, not authenticated, or absent
+  #   network_error         DNS, reset, EPIPE, stale keep-alive socket — the
+  #                         CONNECTION failed, usually within milliseconds
+  #   timeout               the provider was REACHED and did not answer inside
+  #                         its timeout_ms (or the client gave up first)
+  #   gateway_5xx           502 / 503 / 504 from the provider's edge
+retry_on:
+  - quota_exhausted
+  - provider_unavailable
+  - network_error
+  - timeout
+  - gateway_5xx
+
+# Retry the SAME provider this many times before advancing to a slower fallback.
+# Counted per provider within a single request.
+#
+# This budget applies ONLY to `network_error` (see SAME_PROVIDER_RETRY_CLASSES in
+# proxy-bridge/routing-config.mjs). A connection that failed almost always
+# succeeds on a fresh one, and it fails fast enough for the retry to be cheap.
+#
+# It deliberately does NOT apply to `timeout`, which was folded into
+# network_error until 2026-09-02. Re-attempting a provider that just missed its
+# deadline costs a second full timeout_ms for the same verdict: fg-chat/pi
+# medium turns offloaded to qwen-local burned 2 x 30s before gh-copilot answered
+# in ~3.5s. A timeout still advances the chain — it is just never spent twice.
+same_provider_retries: 1
+
+# A request carrying tools[] may only land on a provider whose
+# capabilities.tools is true in llm-routing.yaml. With this on, a tools-bearing
+# request that has no capable provider FAILS LOUDLY rather than silently landing
+# somewhere that will drop the tools and return prose.
+#
+# Worth knowing: this is the mechanism that made a single exhausted Copilot quota
+# stop every agent at once, back when copilot was the only tools-capable provider.
+# It is still correct — silently stripping tools is worse — but the fix for that
+# outage is to have more than one capable provider, not to turn this off.
+enforce_capabilities: true

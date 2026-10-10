@@ -1,0 +1,85 @@
+@startuml request-flow
+!include _standard-style.puml
+
+title LLM Proxy — Request Flow (v2.0: pin + token-usage + reap)
+
+' Color legend: Orange=Docker→Host, Blue=host dispatch, Red=corp proxy+reaping,
+' Green=outbound LLM, Purple=config reads, Teal=token-usage write.
+
+participant "Docker Service" as client #FFE0B2
+participant "Bridge Server\n:12435" as bridge #BBDEFB
+participant "SettingsStore" as settings #C5CAE9
+participant "ProviderRegistry" as reg #BBDEFB
+participant "NetworkDetector" as net #BBDEFB
+participant "CopilotProvider" as cop #BBDEFB
+participant "auth.json" as authfile #E1BEE7
+participant "CONNECT Tunnel" as tunnel #FFCDD2
+participant "copilot-api.*" as api #C8E6C9
+participant "TokenUsageStore" as tokendb #B2DFDB
+participant "JSON Exporter" as exporter #B2DFDB
+
+client -[#FF9800]> bridge : POST /api/complete\n{"process":"observation-writer",\n"messages":[...]}
+activate bridge
+
+bridge -[#2196F3]> settings : lookup(process)
+settings -[#2196F3]-> bridge : pin? -> {"provider":"copilot",\n"model":"claude-sonnet-4.6"}
+
+alt per-process pin found
+    bridge -[#2196F3]> bridge : provider = pin.provider\nmodel    = pin.model\n(hard override — wins over body.provider)
+else no pin, no body.provider
+    bridge -[#2196F3]> net : detectNetworkMode()
+    net -[#2196F3]-> bridge : "corporate"
+    bridge -[#2196F3]> bridge : preference = ["claude-code","copilot"]\n(groq/oai/anth excluded on corporate)
+    bridge -[#2196F3]> bridge : select first available
+end
+
+== Client-disconnect watch ==
+bridge -[#F44336]> bridge : res.on('close')\n  -> reqAbort.abort()
+note right of bridge: If client disconnects mid-flight\nthe abort propagates to fetch()\nand kills any spawned CLI subprocess.
+
+== Provider call ==
+bridge -[#2196F3]> reg : complete("copilot", messages)
+activate reg
+
+reg -[#2196F3]> cop : complete(messages)
+activate cop
+
+cop -[#9C27B0]> authfile : read token, enterpriseUrl
+authfile -[#9C27B0]-> cop : {token, url}
+
+alt HTTPS_PROXY set (corporate network)
+    cop -[#F44336]> tunnel : HTTP CONNECT\ncopilot-api.enterprise:443
+    activate tunnel
+    tunnel -[#F44336]> api : TLS handshake
+    tunnel -[#F44336]-> cop : tunnel established
+    deactivate tunnel
+else no proxy (public network)
+    cop -[#4CAF50]> api : direct HTTPS
+end
+
+cop -[#4CAF50]> api : POST /chat/completions\nAuthorization: Bearer {token}
+api -[#4CAF50]-> cop : {"choices":[...]}
+cop -[#2196F3]-> reg : {text, model, usage}
+deactivate cop
+
+reg -[#2196F3]-> bridge : result
+deactivate reg
+
+== Token-usage logging (always, never blocks the response) ==
+bridge -[#009688]> tokendb : logCall(provider, model,\nprocess, in/out tokens, latency,\nprompt_preview)
+tokendb -[#009688]> exporter : schedule(2s debounce)
+note right of exporter: Coalesces a burst of completions\ninto one write of token-usage.json.\nSafety-merges historic rows so a\nlocal DB reset can't wipe shared history.
+
+bridge -[#FF9800]-> client : {"content":"...",\n"provider":"copilot",\n"model":"claude-sonnet-4.6",\n"tokens":{...}}
+deactivate bridge
+
+legend bottom right
+  | <#FF9800>  | Docker -> Host bridge |
+  | <#2196F3>  | Host-local dispatch |
+  | <#F44336>  | Corporate proxy / reaping |
+  | <#4CAF50>  | Outbound to LLM provider |
+  | <#9C27B0>  | Config / file reads |
+  | <#009688>  | Token-usage write path |
+endlegend
+
+@enduml

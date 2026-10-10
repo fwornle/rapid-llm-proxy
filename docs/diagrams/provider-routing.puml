@@ -1,0 +1,70 @@
+@startuml provider-routing
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName "Segoe UI"
+skinparam shadowing false
+skinparam ActivityBackgroundColor #E8EAF6
+skinparam ActivityBorderColor #3F51B5
+
+title LLM Proxy — Provider Routing & VPN-Aware Fallback
+
+start
+
+:Incoming LLM request;
+
+if (provider\nexplicitly set?) then (yes)
+  :Use requested provider;
+else (no)
+  :Auto-route:\ndetect network mode;
+
+  if (VPN / Corporate\nNetwork detected?) then (yes)
+    :Filter to VPN-safe providers;
+    note right
+      VPN-safe providers:
+      * **Copilot** (enterprise endpoint)
+      * **Claude Code CLI** (tunneled)
+      ──────────────────
+      Excluded on VPN:
+      * Groq (unreachable)
+      * OpenAI (unreachable)
+      * Anthropic (unreachable)
+    end note
+  else (no — public network)
+    :All providers available;
+    note right
+      Public network priority:
+      1. Copilot
+      2. Claude Code CLI
+      3. Groq
+      4. OpenAI
+      5. Anthropic
+    end note
+  endif
+endif
+
+:Select provider from priority chain;
+
+repeat
+  :Try provider;
+
+  if (Provider\navailable?) then (yes)
+    :Send request;
+
+    if (Success?) then (yes)
+      :Return response;
+      stop
+    else (no — error/timeout)
+      :Log error;
+    endif
+  else (no)
+    :Skip unavailable provider;
+  endif
+
+  :Next provider in chain;
+repeat while (more providers?) is (yes)
+
+:All providers failed;
+:Return error response;
+stop
+
+@enduml

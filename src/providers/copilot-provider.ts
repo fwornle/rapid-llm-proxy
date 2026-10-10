@@ -125,6 +125,13 @@ export class CopilotProvider extends BaseProvider {
   readonly name: ProviderName = 'copilot';
   readonly isLocal = false;
 
+  // Phase 82-03: Copilot's /chat/completions endpoint is OpenAI-native and
+  // supports function calling, so tools[]/tool_choice are forwarded and
+  // tool_calls are parsed back. Declared explicitly (base/other providers keep
+  // the `false` default) so the shim's capability gate can PREFER a capable
+  // provider and never silent-strip tools onto an incapable one.
+  readonly supportsFunctionCalling = true;
+
   private auth: CopilotAuth | null = null;
   private useProxy = false;
 
@@ -133,7 +140,7 @@ export class CopilotProvider extends BaseProvider {
       models: {
         fast: 'claude-haiku-4.5',
         standard: 'claude-sonnet-4.6',
-        premium: 'claude-opus-4.6',
+        premium: 'claude-opus-5',
       },
       defaultModel: 'claude-sonnet-4.6',
       timeout: 120000,
@@ -287,6 +294,14 @@ export class CopilotProvider extends BaseProvider {
     if (request.responseFormat?.type === 'json_object') {
       body.response_format = { type: 'json_object' };
     }
+    // Phase 82-03: forward tools[]/tool_choice for native function calling.
+    // Guarded so tool-less requests are byte-unchanged.
+    if (Array.isArray(request.tools) && request.tools.length > 0) {
+      body.tools = request.tools;
+    }
+    if (request.toolChoice !== undefined) {
+      body.tool_choice = request.toolChoice;
+    }
 
     try {
       const startTime = Date.now();
@@ -316,13 +331,19 @@ export class CopilotProvider extends BaseProvider {
       }
 
       const data = await response.json() as {
-        choices: Array<{ message: { content: string } }>;
+        choices: Array<{ message: { content: string; tool_calls?: unknown[] } }>;
         usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
         model?: string;
       };
 
-      const content = data.choices?.[0]?.message?.content || '';
+      const message = data.choices?.[0]?.message;
+      const content = message?.content || '';
       const usage = data.usage;
+      // Phase 82-03: surface native tool_calls back onto the result so the shim
+      // response envelope can emit message.tool_calls + finish_reason 'tool_calls'.
+      const toolCalls = Array.isArray(message?.tool_calls) && message.tool_calls.length > 0
+        ? message.tool_calls
+        : undefined;
 
       return {
         content,
@@ -337,6 +358,7 @@ export class CopilotProvider extends BaseProvider {
         cached: false,
         local: false,
         mock: false,
+        ...(toolCalls ? { toolCalls } : {}),
       };
     } catch (error: unknown) {
       clearTimeout(timer);

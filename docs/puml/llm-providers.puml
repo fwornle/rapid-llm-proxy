@@ -1,0 +1,81 @@
+@startuml llm-providers
+!theme plain
+skinparam backgroundColor white
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 11
+
+title rapid-llm-proxy — Provider Hierarchy
+
+abstract class BaseProvider {
+  + name: string
+  + generateText(prompt, options): string
+  + isAvailable(): boolean
+  # circuitBreaker: CircuitBreaker
+}
+
+abstract class CLIProviderBase extends BaseProvider {
+  # spawnProcess(cmd, args): string
+  # parseOutput(stdout): string
+}
+
+class CopilotProvider <<api>> extends BaseProvider {
+  - authTokenPath: string
+  - endpoint: URL
+  + loadOAuthToken(): string
+  + httpPost(messages): Response
+  __ auth __
+  reads ~/.local/share/opencode/auth.json
+  direct HTTP POST to Copilot API
+}
+
+class ClaudeCodeProvider <<cli>> extends CLIProviderBase {
+  - model: string
+  + spawnClaude(prompt): string
+  __ execution __
+  claude --print -m <model>
+}
+
+class AnthropicProvider <<api>> extends BaseProvider {
+  - apiKey: string
+}
+
+class OpenAIProvider <<api>> extends BaseProvider {
+  - apiKey: string
+}
+
+class GroqProvider <<api>> extends BaseProvider {
+  - apiKey: string
+}
+
+class GeminiProvider <<api>> extends BaseProvider {
+  - apiKey: string
+}
+
+class GitHubModelsProvider <<api>> extends BaseProvider {
+  - token: string
+}
+
+class OllamaProvider <<local>> extends BaseProvider {
+  - host: string
+}
+
+class DMRProvider <<local>> extends BaseProvider {
+  - endpoint: string
+}
+
+class OpenAICompatibleProvider <<api>> extends BaseProvider {
+  - baseUrl: string
+  - apiKey: string
+}
+
+class ProxyProvider <<bridge>> extends BaseProvider {
+  - proxyUrl: string
+  + forwardRequest(prompt): string
+  __ routing __
+  HTTP POST to proxy bridge
+}
+
+class MockProvider <<test>> extends BaseProvider {
+  - responses: Map
+}
+@enduml

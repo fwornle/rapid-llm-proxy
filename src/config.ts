@@ -151,8 +151,8 @@ export function getDefaultConfig(): LLMServiceConfig {
       anthropic: {
         name: 'anthropic' as ProviderName,
         apiKeyEnvVar: 'ANTHROPIC_API_KEY',
-        models: { fast: 'claude-haiku-4-5', standard: 'claude-sonnet-4-5', premium: 'claude-opus-4-6' },
-        defaultModel: 'claude-sonnet-4-5',
+        models: { fast: 'claude-haiku-4-5', standard: 'claude-sonnet-5', premium: 'claude-opus-5' },
+        defaultModel: 'claude-sonnet-5',
       },
       openai: {
         name: 'openai' as ProviderName,

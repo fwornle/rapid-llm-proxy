@@ -1,0 +1,87 @@
+@startuml architecture-overview
+!include _standard-style.puml
+skinparam componentStyle rectangle
+
+title RAPID LLM Proxy — Architecture Overview (v2.0)
+
+' ── Docker Containers (top) ──
+rectangle "**Docker Container(s)**" as docker #BBDEFB {
+  component "obs-api" as okb #90CAF9
+  component "Observation Writer" as obswriter #90CAF9
+  component "Other Services\n(Dashboard, Scheduler)" as other #90CAF9
+}
+
+' ── Host Machine (middle) ──
+rectangle "**Host Machine**" as host #DDFFDD {
+  component "Coding Agent\n(Claude Code, OpenCode, …)" as agent #C8E6C9
+  component "**LLM Proxy Bridge**\n(HTTP Server — Port 12435)\n+ TokenUsageStore + SettingsStore\n+ Client-Disconnect Reaper" as bridge #81C784
+  component "LLM Proxy npm\n(@rapid/llm-proxy)" as npm #A5D6A7
+  component "Health Dashboard\n(Token Usage page,\nSettings dialog)" as dash #A5D6A7
+  component "Launchd Wrapper\nstart-llm-proxy.sh" as wrap #DCEDC8
+}
+
+' ── Config files ──
+database "llm-proxy.yaml\n(Provider config)" as yaml #FFF9C4
+database "auth.json\n(OAuth tokens)" as auth #FFF9C4
+database "token-usage.db\n(SQLite, untracked)" as tokendb #FFF9C4
+file "token-usage.json\n(git-trackable export)" as tokenjson #FFE082
+file "settings.json\n(per-process pins)" as settingsjson #FFE082
+
+' ── External — health-coordinator (decides corporate vs public) ──
+component "Health Coordinator\n:3034" as coord #F8BBD0
+
+' ── LLM Providers (bottom) ──
+cloud "**LLM Providers**" as providers {
+  component "GitHub Copilot\n(Enterprise / Individual)" as copilot #CE93D8
+  component "Claude Code CLI" as claude_cli #CE93D8
+  component "OpenAI API" as openai #CE93D8
+  component "Anthropic API" as anthropic #CE93D8
+  component "Groq API" as groq #CE93D8
+}
+
+' ── Blue: Host-local process calls ──
+agent -[#2196F3]-> bridge : local call
+agent -[#2196F3]-> npm : import
+dash -[#2196F3]-> bridge : /api/token-usage/*\n/api/llm/settings
+
+' ── Orange: Docker → Host bridge ──
+okb -[#FF9800]-> bridge : host.docker.internal:12435
+obswriter -[#FF9800]-> bridge : host.docker.internal:12435
+other -[#FF9800]-> bridge : host.docker.internal:12435
+
+' ── Purple: Config / file reads ──
+bridge -[#9C27B0]-> yaml
+bridge -[#9C27B0]-> auth
+bridge -[#9C27B0]-> settingsjson
+npm -[#9C27B0]-> yaml
+npm -[#9C27B0]-> auth
+
+' ── Teal: Token-usage dataplane ──
+bridge -[#009688]-> tokendb : logCall()
+tokendb -[#009688]-> tokenjson : debounced export\n+ safety merge
+
+' ── Wrapper probes coordinator ──
+wrap -[#9C27B0]-> coord : GET /health/state\n(network.location)
+wrap -[#2196F3]-> bridge : exec with HTTPS_PROXY\n(if corporate)
+
+' ── Green: Copilot (always available on VPN) ──
+bridge -[#4CAF50]-> copilot : **always available**\n(corporate + public)
+bridge -[#4CAF50]-> claude_cli : always available (CLI on host)
+
+' ── Red: Off-VPN only providers ──
+bridge -[#F44336]-> openai : public network only
+bridge -[#F44336]-> anthropic : public network only
+bridge -[#F44336]-> groq : public network only
+
+' ── Legend ──
+legend right
+  | **Color** | **Meaning** |
+  |<back:#2196F3>      </back>| Host-local process calls |
+  |<back:#FF9800>      </back>| Docker -> Host bridge |
+  |<back:#4CAF50>      </back>| VPN-safe provider (Copilot, Claude Code) |
+  |<back:#F44336>      </back>| Public-only providers |
+  |<back:#9C27B0>      </back>| Config / file reads |
+  |<back:#009688>      </back>| Token-usage dataplane |
+endlegend
+
+@enduml

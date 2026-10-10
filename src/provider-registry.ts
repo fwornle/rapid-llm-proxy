@@ -56,11 +56,11 @@ export class ProviderRegistry {
       console.info(`[llm] Network mode: ${this.networkMode} — no overrides defined`);
     }
 
-    // On VPN, external API providers are unreachable — their fetch() calls hang in SYN_SENT
-    // forever, even with timeouts, because Node.js keeps TCP sockets alive after Promise.race
-    // rejects. Only init providers that can work on the current network.
-    const vpnBlockedProviders = new Set<ProviderName>(['groq', 'openai', 'anthropic', 'gemini', 'github-models']);
-    const skipOnVpn = this.networkMode === 'vpn';
+    // On corporate network (CN/VPN), external API providers are unreachable — their fetch()
+    // calls hang in SYN_SENT forever, even with timeouts, because Node.js keeps TCP sockets
+    // alive after Promise.race rejects. Only init providers that can work on the current network.
+    const corpBlockedProviders = new Set<ProviderName>(['groq', 'openai', 'anthropic', 'gemini', 'github-models']);
+    const skipOnCorp = this.networkMode === 'corporate';
 
     const allProviders: Array<{ name: ProviderName; instance: LLMProvider }> = [
       { name: 'claude-code', instance: new ClaudeCodeProvider(this.config.providers?.['claude-code']) },
@@ -75,13 +75,13 @@ export class ProviderRegistry {
       { name: 'mock', instance: new MockProvider() },
     ];
 
-    const providerInstances = skipOnVpn
-      ? allProviders.filter(p => !vpnBlockedProviders.has(p.name))
+    const providerInstances = skipOnCorp
+      ? allProviders.filter(p => !corpBlockedProviders.has(p.name))
       : allProviders;
 
-    if (skipOnVpn) {
-      const skipped = allProviders.filter(p => vpnBlockedProviders.has(p.name)).map(p => p.name);
-      console.info(`[llm] VPN detected — skipping unreachable providers: ${skipped.join(', ')}`);
+    if (skipOnCorp) {
+      const skipped = allProviders.filter(p => corpBlockedProviders.has(p.name)).map(p => p.name);
+      console.info(`[llm] Corporate network detected — skipping unreachable providers: ${skipped.join(', ')}`);
     }
 
     const INIT_TIMEOUT_MS = 10_000;
@@ -90,7 +90,7 @@ export class ProviderRegistry {
         const ac = new AbortController();
         try {
           await Promise.race([
-            instance.initialize({ signal: ac.signal }),
+            instance.initialize(),
             new Promise((_, reject) => setTimeout(() => {
               ac.abort();
               reject(new Error(`Init timeout after ${INIT_TIMEOUT_MS}ms`));
@@ -166,10 +166,34 @@ export class ProviderRegistry {
   }
 
   /**
-   * Resolve an ordered list of (provider, model) to try for a request
+   * Resolve an ordered list of (provider, model) to try for a request.
+   *
+   * ── Egress containment ──────────────────────────────────────────────────
+   * Every arm below can select a DIRECT-to-vendor provider (anthropic, openai,
+   * groq, gemini) that talks to the vendor's API from inside this process. That
+   * is a structural bypass of the proxy: such a call is unmeasured, unrouted,
+   * and spends on whatever key happens to be in the environment — none of which
+   * the routing config can see or control.
+   *
+   * `LLM_PROXY_ONLY=1` (default ON when a proxy provider is registered) collapses
+   * the chain to the proxy provider alone, so "everything goes through the
+   * proxy" holds by construction rather than by every deployment remembering to
+   * strip API keys from the container. Set LLM_PROXY_ONLY=0 for a genuinely
+   * standalone embedding of this SDK with no proxy in front of it.
    */
   resolveProviderChain(request: LLMCompletionRequest): ProviderSelection[] {
     const chain: ProviderSelection[] = [];
+
+    const proxyProvider = this.providers.get('proxy' as ProviderName);
+    const proxyOnly = process.env.LLM_PROXY_ONLY !== '0';
+    if (proxyOnly && proxyProvider?.isAvailable()) {
+      const models = proxyProvider.getModels();
+      const tier = this.resolveTier(request);
+      const model = models[tier] || models.standard || Object.values(models)[0];
+      // The proxy resolves the real provider and model from its own config; the
+      // SDK's tier is only a hint it may honour via `complexity`.
+      return [{ provider: proxyProvider, model: model || 'auto' }];
+    }
 
     // 1. Check explicit model routing by operationType
     if (request.operationType && this.config.modelRouting) {

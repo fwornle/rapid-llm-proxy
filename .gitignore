@@ -1,0 +1,71 @@
+node_modules/
+*.js
+*.d.ts
+*.js.map
+# tsc emits four kinds of build output and the three above only cover
+# three of them. The declaration maps slipped through and 30 of them were
+# committed by the 2.0.0 release; every rebuild then dirtied the tree with
+# diffs nobody reads. They were dead weight besides — a .d.ts.map is an
+# index into the .d.ts beside it, and those are ignored, so each map
+# pointed at a file the repo does not carry.
+*.d.ts.map
+# tsc's output directory. The patterns above miss what else lands there, and a
+# leftover dist/ makes the tree dirty for tools that refuse to run on one
+# (coding's glass extract --publish).
+dist/
+!bin/llm-proxy
+!bin/llm-proxy.mjs
+!proxy-bridge/server.mjs
+
+logs/
+!.specstory/history/logs/
+*.tgz
+vendor/
+
+# Secrets — sourced by bin/start-llm-proxy.sh at boot.
+#
+# The glob matters as much as the bare name. Rotating a key means copying .env
+# aside first, and `.env.bak-<stamp>` is NOT matched by `.env` — it lands in
+# `git status` as an ordinary untracked file holding the credential that was
+# just replaced, one `git add .` away from being published.
+.env
+.env.*
+!.env.example
+
+# MCP Memory LevelDB (volatile runtime data)
+# Ignore binary database files, but track JSON exports
+.data/knowledge-graph/
+.data/knowledge.db
+.data/knowledge.db-shm
+.data/knowledge.db-wal
+.data/backups/
+
+# Track knowledge exports (git-reviewable JSON)
+!.data/
+!.data/knowledge-export/
+!.data/knowledge-config.json
+
+# Coding infrastructure runtime files (auto-added by coding startup)
+.constraint-monitor.yaml
+.claude/settings.local.json
+.health/
+.logs/
+*.log
+.specstory/validation-report.json
+.specstory/change-log.json
+
+# Private history repo — chat logs live in a separate <name>-history repo
+.specstory/history/
+
+# Coding-startup-generated artifacts (auto-written when launched via coding/bin) —
+# not part of the proxy's own source; regenerated on each start.
+.github/copilot-instructions.md
+.mastra/
+CLAUDE.md
+proxy-bridge/.data/
+
+# Proxy runtime data (SQLite token-usage DB, service logs). The `!.data/`
+# negation above is inherited from the coding repo, where .data/ holds
+# git-reviewable knowledge exports; here it holds nothing but runtime state.
+.data/llm-proxy/
+.data/logs/

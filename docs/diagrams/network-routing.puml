@@ -1,0 +1,90 @@
+@startuml network-routing
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam shadowing false
+skinparam defaultFontName "Helvetica"
+skinparam ActivityBackgroundColor #FFFFFF
+
+title LLM Proxy — Network-Adaptive Provider Routing
+
+start
+
+partition "Network Detection" #E3F2FD {
+    :Check **LLM_NETWORK_MODE** env var;
+    if (env var set?) then (yes)
+        :mode = env value;
+    else (no)
+        :Scan network interfaces\n(utun, tun, ppp, wg);
+        if (VPN interface found?) then (yes)
+            #BBDEFB:mode = **vpn**;
+        else (no)
+            #C8E6C9:mode = **public**;
+        endif
+    endif
+}
+
+if (mode?) then (vpn)
+    
+    partition "VPN Provider Chain" #FFF3E0 {
+        #FFE0B2:Load **network_overrides.vpn**\nfrom YAML config;
+        :Priority: **copilot** → **claude-code**;
+        note right
+            groq, openai, anthropic
+            **skipped** (unreachable on VPN)
+        end note
+        
+        #FFE0B2:Try **Copilot**\n(enterprise or individual);
+        if (Copilot available?) then (yes)
+            if (HTTPS_PROXY set?) then (yes)
+                #FFCDD2:CONNECT tunnel\nthrough corporate proxy;
+            else (no)
+                #C8E6C9:Direct HTTPS;
+            endif
+            #C8E6C9:→ copilot-api.*.com\n/chat/completions;
+            stop
+        else (no)
+            #FFE0B2:Try **Claude Code CLI**\n(host only, not Docker);
+            if (claude CLI available?) then (yes)
+                #BBDEFB:→ claude -p --output-format json;
+                stop
+            else (no)
+                #FFCDD2:All providers failed;
+                stop
+            endif
+        endif
+    }
+
+else (public)
+
+    partition "Public Provider Chain" #E8F5E9 {
+        #C8E6C9:Load **network_overrides.public**\nfrom YAML config;
+        :Priority: **copilot** → **claude-code**\n→ **groq** → **openai** → **anthropic**;
+        
+        #C8E6C9:Try **Copilot**;
+        if (Copilot available?) then (yes)
+            #C8E6C9:Direct HTTPS\n→ copilot-api.*.com;
+            stop
+        else (no)
+            #C8E6C9:Try **Claude Code CLI**;
+            if (available?) then (yes)
+                #BBDEFB:→ claude -p;
+                stop
+            else (no)
+                #C8E6C9:Try **Groq** → **OpenAI** → **Anthropic**;
+                :Direct HTTPS with API key;
+                stop
+            endif
+        endif
+    }
+
+endif
+
+legend bottom right
+  | <#BBDEFB>  | Host-local operations |
+  | <#FFE0B2>  | VPN-specific routing |
+  | <#C8E6C9>  | Public / direct HTTPS |
+  | <#FFCDD2>  | Corporate proxy tunnel |
+  | <#E1BEE7>  | Config / file reads |
+endlegend
+
+@enduml

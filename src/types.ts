@@ -51,6 +51,13 @@ export interface LLMCompletionRequest {
   skipCache?: boolean;
   forcePaid?: boolean;
   timeout?: number;  // Per-provider timeout in ms (default: 120000)
+
+  // Phase 82-03: native tool-call passthrough. OpenAI-shape function schemas +
+  // tool_choice forwarded verbatim to function-calling-capable providers
+  // (Copilot's /chat/completions is OpenAI-native). Optional/non-breaking —
+  // absent on non-agentic callers, so existing requests are unchanged.
+  tools?: unknown[];
+  toolChoice?: unknown;
 }
 
 export interface LLMCompletionResult {
@@ -66,6 +73,11 @@ export interface LLMCompletionResult {
   cached?: boolean;
   local?: boolean;
   mock?: boolean;
+
+  // Phase 82-03: native tool calls returned by the provider (OpenAI shape:
+  // [{ id, type:'function', function:{ name, arguments } }]). Present only when
+  // the model emitted a function call; undefined for plain text completions.
+  toolCalls?: unknown[];
 }
 
 // --- Provider Interface ---
@@ -145,7 +157,7 @@ export interface LLMServiceConfig {
     resetTimeoutMs?: number;
   };
   networkOverrides?: {
-    vpn?: NetworkOverrideConfig;
+    corporate?: NetworkOverrideConfig;
     public?: NetworkOverrideConfig;
   };
 }
