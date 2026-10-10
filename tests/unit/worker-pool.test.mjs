@@ -18,10 +18,18 @@
  * `claude` subprocess is spawned in this file.
  */
 
-import { describe, it } from 'node:test';
+import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { ClaudeWorker, WorkerPool } from '../../proxy-bridge/worker-pool.mjs';
+
+// The worker's timeout and deferral timers are unref()'d (they must never keep the
+// proxy alive), and the mock stdio holds no handle either. With nothing else on the
+// event loop, Node 22's test runner ends a test whose only pending work is such a
+// timer: "Promise resolution is still pending but the event loop has already
+// resolved". One referenced handle for the life of the file keeps the loop open.
+const keepAlive = setInterval(() => {}, 60_000);
+after(() => clearInterval(keepAlive));
 import {
   makeMockWorkerStdio,
   makeMockErrorWorkerStdio,

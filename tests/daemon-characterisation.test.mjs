@@ -74,7 +74,8 @@ function norm(v, sandbox) {
   if (v && typeof v === 'object') {
     const o = {};
     for (const k of Object.keys(v).sort()) {
-      o[k] = VOLATILE_KEYS.has(k) && v[k] !== null && v[k] !== 0 ? '<volatile>' : norm(v[k], sandbox);
+      // 0 is volatile too: a fast runner measures a 0ms latency (macOS CI did).
+      o[k] = VOLATILE_KEYS.has(k) && v[k] !== null ? '<volatile>' : norm(v[k], sandbox);
     }
     return o;
   }
