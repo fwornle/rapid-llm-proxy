@@ -209,6 +209,12 @@ const SCENARIOS = [
   { name: 'read: token-usage recent', method: 'GET', path: '/api/token-usage/recent?limit=3&scope=both' },
   { name: 'read: token-usage cost', method: 'GET', path: '/api/token-usage/cost?months=1',
     project: (b) => ({ months: b.months, rows: (b.rows || []).map(({ month, ...r }) => r) }) },
+  // call_kind: claude's restricted toolset is a subagent (pi's above stays main);
+  // a toolless call is a side call. After the reads, so their aggregates keep their shape.
+  { name: 'messages json, claude subagent toolset → call_kind subagent',
+    path: '/v1/messages', headers: { 'x-task-id': 'task-sub' }, body: anthropicBody({ tools: SUB_TOOLS }) },
+  { name: 'messages json, no tools (title call) → call_kind side',
+    path: '/v1/messages', headers: { 'x-task-id': 'task-side' }, body: anthropicBody({ tools: undefined }) },
 ];
 
 let sandbox; let upstream; let daemon;

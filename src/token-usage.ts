@@ -216,6 +216,19 @@ export interface TokenUsageRow {
    * '' = not recorded (background callers that serve no one repo, legacy rows).
    */
   project?: string;
+  /**
+   * Call facts a measuring passthrough observes, for "which model answered, and
+   * was it the agent's main loop". '' = not recorded (routed calls, file
+   * adapters, legacy rows) — never guessed.
+   *   upstream  — host[:port] the call was forwarded to (the agent's own API
+   *               host, or a relay such as an LLM proxy on loopback). A host,
+   *               never a URL: no path, query or credentials.
+   *   call_kind — 'main' (carries tool definitions: the agent's loop),
+   *               'subagent' (claude: tools without a spawner tool), 'side'
+   *               (no tools: title, summary, intent calls).
+   */
+  upstream?: string;
+  call_kind?: string;
 }
 
 export interface TokenUsageDb {
@@ -808,6 +821,23 @@ export function initTokenDb(overrideDataDir?: string): TokenUsageDb {
   }
 
   // -----------------------------------------------------------------------
+  // Call facts — upstream + call_kind (see TokenUsageRow). Same shape as every
+  // block above: PRAGMA-guarded, additive, non-fatal. No index: they are read
+  // with a session's rows, which the task_id / timestamp indexes already find.
+  // -----------------------------------------------------------------------
+  try {
+    const cols9 = db.prepare(`PRAGMA table_info(token_usage)`).all() as Array<{ name: string }>;
+    const existingFacts = new Set(cols9.map(c => c.name));
+    for (const name of ['upstream', 'call_kind']) {
+      if (!existingFacts.has(name)) {
+        db.exec(`ALTER TABLE token_usage ADD COLUMN ${name} TEXT NOT NULL DEFAULT ''`);
+      }
+    }
+  } catch (err) {
+    process.stderr.write(`[token-usage] call-facts column migration failed (non-fatal): ${(err as Error).message}\n`);
+  }
+
+  // -----------------------------------------------------------------------
   // Phase 83-02 (D-11): duplicate-id collision fix — request-id dedup index.
   //
   // The /v1/messages tap (this proxy) and the coding-side adapters
@@ -943,8 +973,9 @@ export function initTokenDb(overrideDataDir?: string): TokenUsageDb {
       cache_read_tokens, cache_write_tokens,
       route_key, route_band, route_step, offloaded_from, chain_position,
       attempt_trail, routing_source,
-      conversation_key, turn_index, band_source, project
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      conversation_key, turn_index, band_source, project,
+      upstream, call_kind
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   // Local id counter for this machine's USER_HASH. Seeded LATE (after
@@ -1173,6 +1204,23 @@ export function sanitizeProject(value: unknown): string {
   return /^[A-Za-z0-9._~@+-]+$/.test(v) ? v : '';
 }
 
+/**
+ * An upstream as it may be stored: host[:port] only. A URL is reduced to its
+ * host; userinfo, path and query never reach the row. Anything unparseable
+ * records '' (a gap, not a dropped call).
+ */
+export function sanitizeUpstream(value: unknown): string {
+  if (typeof value !== 'string' || !value.trim()) return '';
+  const v = value.trim();
+  try {
+    return new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(v) ? v : `http://${v}`).host;
+  } catch {
+    return '';
+  }
+}
+
+const CALL_KINDS = new Set(['main', 'subagent', 'side']);
+
 export function logCall(handle: TokenUsageDb, row: TokenUsageRow): void {
   try {
     // ATTR-05: per-row user_hash override (e.g. 'cladpt' for the /v1/messages
@@ -1238,7 +1286,9 @@ export function logCall(handle: TokenUsageDb, row: TokenUsageRow): void {
         row.conversation_key ?? '',
         row.turn_index ?? 0,
         row.band_source ?? '',
-        sanitizeProject(row.project)
+        sanitizeProject(row.project),
+        sanitizeUpstream(row.upstream),
+        CALL_KINDS.has(row.call_kind ?? '') ? (row.call_kind as string) : ''
       );
     };
 

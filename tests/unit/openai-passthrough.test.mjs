@@ -16,7 +16,7 @@ import path from 'node:path';
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'oa-passthrough-'));
 process.env.LLM_PROXY_DATA_DIR = dataDir;
 
-const { initTokenDb } = await import('../../dist/token-usage.js');
+const { initTokenDb, sanitizeUpstream } = await import('../../dist/token-usage.js');
 const { createMeasurement, createOpenAIUsageTap } = await import('../../proxy-bridge/measurement.mjs');
 const { handleOpenAIPassthrough, withUsageRequested, openAIWireOf } = await import('../../proxy-bridge/openai-passthrough.mjs');
 
@@ -38,7 +38,8 @@ function respond(req, body, res) {
     return res.end(JSON.stringify({ data: [{ id: 'gpt-x' }] }));
   }
   if (req.url.endsWith('/responses')) {
-    res.writeHead(200, { 'content-type': 'text/event-stream', 'x-request-id': 'req-resp' });
+    // The token DB dedups on the request id: a second responses test names its own.
+    res.writeHead(200, { 'content-type': 'text/event-stream', 'x-request-id': req.headers['x-test-request-id'] || 'req-resp' });
     return res.end(sse([
       { type: 'response.created', response: { model: 'gpt-5.1' } },
       { type: 'response.output_text.delta', delta: 'pong' },
@@ -209,4 +210,29 @@ test('a routing upstream names the account that answered: the row carries it, no
   const [named, junk] = rows().slice(before);
   assert.equal(named.provider, 'claude-code-max');
   assert.equal(junk.provider, 'github-copilot', 'a malformed header falls back to the label');
+});
+
+test('call facts: upstream is the host the call went to; call_kind from the tools the agent sent', async () => {
+  const before = rows().length;
+  const fn = { type: 'function', function: { name: 'read', parameters: {} } };
+  await (await post('/v1/chat/completions', { model: 'gpt-4o-mini', messages: msgs, tools: [fn] })).json();
+  await (await post('/v1/chat/completions', { model: 'gpt-4o-mini', messages: msgs })).json();
+  // A Responses request whose only tool is not a function: the chat conversion
+  // drops it, but the agent sent it from its loop.
+  await (await post('/responses', { model: 'gpt-5.1', input: 'ping', tools: [{ type: 'web_search' }] }, { 'x-test-request-id': 'req-resp-tools' })).text();
+  await settle();
+  const [withTools, toolless, responses] = rows().slice(before);
+  const host = new URL(upstreamBase).host;
+  assert.deepEqual([withTools.call_kind, toolless.call_kind, responses.call_kind], ['main', 'side', 'main']);
+  for (const r of [withTools, toolless, responses]) assert.equal(r.upstream, host);
+});
+
+test('an upstream is stored as host[:port] only — never a path, query or credentials', () => {
+  assert.equal(sanitizeUpstream('https://api.githubcopilot.com'), 'api.githubcopilot.com');
+  assert.equal(sanitizeUpstream('http://127.0.0.1:12435/v1?k=1'), '127.0.0.1:12435');
+  assert.equal(sanitizeUpstream('https://user:secret@host.example/p'), 'host.example');
+  assert.equal(sanitizeUpstream('api.anthropic.com'), 'api.anthropic.com');
+  assert.equal(sanitizeUpstream(''), '');
+  assert.equal(sanitizeUpstream(undefined), '');
+  assert.equal(sanitizeUpstream('http://'), '');
 });
