@@ -138,7 +138,7 @@ export class CopilotProvider extends BaseProvider {
   constructor(config: Partial<ProviderConfig> = {}) {
     super({
       models: {
-        fast: 'claude-haiku-4.5',
+        fast: 'claude-haiku-5.5',
         standard: 'claude-sonnet-4.6',
         premium: 'claude-opus-5',
       },

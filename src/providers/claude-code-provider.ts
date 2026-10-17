@@ -69,7 +69,7 @@ export class ClaudeCodeProvider extends BaseProvider {
   constructor(config: Partial<ProviderConfig> = {}) {
     super({
       models: {
-        fast: 'haiku',
+        fast: 'claude-haiku-5-5', // the CLI's `haiku` alias still resolves to 4.5
         standard: 'sonnet',
         premium: 'opus',
       },

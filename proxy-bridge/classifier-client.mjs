@@ -15,25 +15,9 @@
 // egress-aware proxyFetch, and the eval runs against a local endpoint with
 // plain fetch. Neither needs the other's networking.
 
-/**
- * The rubric the `local-llm` classifier sends.
- *
- * Calibration is not a detail here, it is the whole thing. Measured 2026-08-30
- * against llama.cpp: with a bare "how hard is this?" prompt, "how many r's in
- * strawberry" came back `medium` — the exact request that motivated the
- * feature. With the three definition lines below it comes back `small`. Same
- * model, same temperature; only this text changed.
- *
- * Kept as ONE constant because llama.cpp KV-caches the prefix: the first call
- * after a change costs a full prefill (~4.8s measured), every call after it
- * ~600-900ms. Varying this string per request would pay that prefill every time.
- */
-export const CLASSIFIER_RUBRIC = [
-  'You route requests to a model tier. Answer with EXACTLY one word: small, medium, or high.',
-  'small  = trivial factual/lookup/formatting, one-step, no code reasoning, no tools needed.',
-  'medium = ordinary single-file coding, explanation, or multi-step reasoning.',
-  'high   = multi-file refactor, architecture, debugging across systems, or subtle correctness.',
-].join('\n');
+// The rubric lives in prompt-classifier.mjs (pure, shipped to glass); re-exported
+// here so the eval and server.mjs keep importing it from the client.
+export { CLASSIFIER_RUBRIC } from './prompt-classifier.mjs';
 
 /**
  * Where the classifier asks. Endpoint from env, policy from YAML — the split

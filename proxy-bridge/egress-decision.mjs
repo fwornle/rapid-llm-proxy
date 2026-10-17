@@ -217,3 +217,28 @@ export function shouldRetryAfterEgressRecheck({
   if (aborted) return false;
   return egressChanged === true;
 }
+
+const PROXY_ENV_KEYS = ['HTTPS_PROXY', 'https_proxy', 'HTTP_PROXY', 'http_proxy'];
+
+/**
+ * The proxy variables a SUBPROCESS should get, from the egress the proxy has
+ * decided on now — not from the environment it was started with.
+ *
+ * The runtime pin only moves this process's own dispatcher. A child process
+ * (the `claude` CLI fallback) reads HTTPS_PROXY from its env, which was
+ * frozen at proxy startup: started at home with no proxy, the CLI then went
+ * direct on VPN — or, started on VPN, it kept a proxy that had stopped
+ * answering after the network changed.
+ *
+ * @param {Record<string, string|undefined>} env   the base environment (copied, not mutated)
+ * @param {{proxy: string|null, evaluated: boolean}} egress  the current pin;
+ *   `evaluated` false before the first decision, when the startup env is all there is
+ * @returns {Record<string, string|undefined>}
+ */
+export function subprocessProxyEnv(env, { proxy, evaluated }) {
+  const out = { ...env };
+  if (!evaluated) return out;
+  for (const k of PROXY_ENV_KEYS) delete out[k];
+  if (proxy) for (const k of PROXY_ENV_KEYS) out[k] = proxy;
+  return out;
+}

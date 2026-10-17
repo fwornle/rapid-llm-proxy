@@ -73,12 +73,13 @@ providers:
     # permit or forbid it. What the list does govern is the band table below,
     # which never named 4.6. Re-add it if a band should point at it again.
     available_models:
+      - claude-haiku-5.5
       - claude-haiku-4.5
       - claude-sonnet-5
       - claude-opus-4.8
       - claude-opus-5
     models:
-      small: claude-haiku-4.5
+      small: claude-haiku-5.5
       medium: claude-sonnet-5
       high: claude-opus-5
 
@@ -136,6 +137,7 @@ providers:
     #                      gpt-4o, gpt-4o-mini
     #   /responses         gpt-5.6-sol, gpt-5.6-luna, gpt-5.6-terra
     available_models:
+      - claude-haiku-5.5
       - claude-haiku-4.5
       - claude-sonnet-5
       - claude-opus-5
@@ -145,7 +147,7 @@ providers:
       - gpt-5.6-luna
       - gpt-5.6-terra
     models:
-      small: claude-haiku-4.5
+      small: claude-haiku-5.5
       medium: claude-sonnet-5
       # high is opus-5. Every opus id used to earn `The requested model is not
       # supported` from this leg, which is why the band sat on sonnet-5 and why
@@ -201,12 +203,13 @@ providers:
     # is commented out in .env, so this provider currently has no credential and
     # /v1/models cannot be probed. It last served 4.6 on 2026-08-08.
     available_models:
+      - claude-haiku-5.5
       - claude-haiku-4.5
       - claude-sonnet-5
       - claude-opus-4.8
       - claude-opus-5
     models:
-      small: claude-haiku-4.5
+      small: claude-haiku-5.5
       medium: claude-sonnet-5
       high: claude-opus-5
 
@@ -786,6 +789,44 @@ semantic_routing:
       # grew `medium`. That gates whether the classifier's medium verdicts are
       # trustworthy, not whether the endpoint can serve them — a wrong band here
       # now moves real foreground work, so it is worth closing.
+      # FOREGROUND LIMITS, because the per-call averages above were measured
+      # on small prompts and an agent's first turn is not one. Measured against
+      # the cluster directly 2026-10-12, no other proxy traffic on it:
+      #
+      #   ~24 in, dual-fast            1.9s     the floor at any size
+      #   ~2K in   uncached / cached   6.7s / 1.95s
+      #   ~20K in  uncached / cached  38.8s / 2.2s   prefill ~540 tok/s
+      #   4 tiny calls at once         12-18s each
+      #   time to first byte           = total; nothing streams
+      #
+      # The five-prompt test the same day offloaded opencode's and copilot's
+      # first turns (27.6K / 20.5K in): both hit 60s and fell back, ~61s for the
+      # turn. Title calls overlapping them took 29-39s. Whether the cluster
+      # still holds an agent's prompt in its cache cannot be seen from here, so
+      # the uncached figure is the one to plan on.
+      #
+      #   max_input_tokens 3000  ~7s prefill uncached + the 1.9s floor; covers
+      #                          titles, side calls and pi's 2.2K first turn
+      #                          (13.4s, answered correctly), not a first turn
+      #                          that carries a full tool context
+      #   timeout_ms 15000       that prefill plus ~150 tokens at ~26 tok/s.
+      #                          A wedged or busy cluster now costs 15s before
+      #                          the fallback, not 60s
+      #   max_in_flight 1        the cluster is never asked to serve a waiting
+      #                          person concurrently with anything else. The
+      #                          daily bg average (~620s busy per day) hides
+      #                          when the load lands: an active agent session
+      #                          triggers its own bg calls on the cluster
+      #                          (bg-kb-relevance-judge, one per prompt, 9.6-
+      #                          14.5s; bg-observation-writer, 7-10s). In the
+      #                          rerun 2026-10-12 this gate kept 4 of opencode's
+      #                          5 title calls off the cluster (gh-copilot,
+      #                          0.6-0.9s). It bites during sessions, which is
+      #                          when it is meant to
+      foreground:
+        max_input_tokens: 3000
+        timeout_ms: 15000
+        max_in_flight: 1
       offload_bands:
         small: [fg, bg]
         # medium is DELIBERATELY ABSENT, for neither of the two reasons you

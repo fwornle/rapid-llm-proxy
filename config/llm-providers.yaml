@@ -31,7 +31,7 @@ providers:
     method: "cli"                       # claude -p --output-format json (Max OAuth)
     timeout: 120000                     # CLI needs longer timeout (~12s typical)
     models:
-      fast: "haiku"
+      fast: "claude-haiku-5-5"         # the CLI's own `haiku` alias still means 4.5 (probed 2026-10-16)
       standard: "sonnet"
       premium: "opus"
     quotaTracking:
@@ -45,7 +45,7 @@ providers:
     # Enterprise: https://copilot-api.${enterpriseUrl}/chat/completions
     # Public:     https://api.individual.githubcopilot.com/chat/completions
     models:
-      fast: "claude-haiku-4.5"
+      fast: "claude-haiku-5.5"         # probed 2026-10-16: Copilot serves the dotted id
       standard: "claude-sonnet-4.6"    # Updated: 4.6 available via enterprise
       # Copilot's OWN catalogue serves opus (verified via `opencode models`);
       # the proxy's gh-copilot leg rejects every opus id, so this tier is only
@@ -64,7 +64,7 @@ providers:
 
   anthropic:
     apiKeyEnvVar: ANTHROPIC_API_KEY
-    fast: "claude-haiku-4-5"            # $1/$5 per MTok, fastest
+    fast: "claude-haiku-5-5"            # fastest; the API takes the hyphenated id only
     standard: "claude-sonnet-5"         # $3/$15 per MTok, fast + intelligent
     premium: "claude-opus-5"            # $5/$25 per MTok, most intelligent
 

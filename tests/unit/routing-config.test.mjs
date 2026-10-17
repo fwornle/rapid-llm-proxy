@@ -322,6 +322,14 @@ describe('explain — one answer for both the log line and the UI', () => {
     assert.equal(e.request.network, 'public');
   });
 
+  it('names the passthrough transport for foreground claude, and only there', () => {
+    const c = cfg();
+    const fg = explain(c, { job: 'fg-chat', agent: 'claude', network: 'public' });
+    assert.equal(fg.route.matchedKey, 'fg-chat/claude');
+    assert.equal(fg.transport, 'anthropic-passthrough');
+    assert.equal(explain(c, { job: 'bg-observation-writer', network: 'public' }).transport, null);
+  });
+
   it('says so loudly when nothing is eligible', () => {
     // tools required, but the only reachable provider in this config is incapable.
     const c = parseRoutingConfig(

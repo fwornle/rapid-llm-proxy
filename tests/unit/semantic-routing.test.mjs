@@ -25,6 +25,7 @@ import {
   resolveRoute,
   buildChain,
   pickOffloadTarget,
+  estimateInputTokens,
   FROM_CALLER,
 } from '../../proxy-bridge/routing-config.mjs';
 
@@ -812,5 +813,78 @@ describe('per-band scope — "cheap for anyone, slow-but-free for nobody waiting
       { enabled: true, offload_bands: ['small', 'medium'], targets: [{ provider: 'qwen-laptop', require_network: 'public', enabled: true, offload_bands: { medium: ['bg'] } }] },
       'declares no model for band "medium"',
     );
+  });
+});
+
+describe('semantic routing — foreground limits on a target', () => {
+  const limited = (foreground) => ({
+    enabled: true,
+    offload_bands: ['small'],
+    targets: [{ provider: 'qwen-local', require_network: 'corporate', enabled: true, foreground }],
+  });
+  const LIMITS = { max_input_tokens: 3000, timeout_ms: 15000, max_in_flight: 1 };
+  const fgSmall = { job: 'fg-chat', agent: 'pi', complexity: 'small', network: 'corporate' };
+
+  it('a small prompt on an idle target is offloaded, with the foreground ceiling', () => {
+    const r = resolveRoute(cfg(limited(LIMITS)), { ...fgSmall, inputTokens: 500, inFlight: {} });
+    assert.equal(r.provider, 'qwen-local');
+    assert.equal(r.offloadedFrom, 'gh-copilot');
+    assert.equal(r.offloadTimeoutMs, 15000);
+  });
+
+  it('a first turn with a full tool context stays on its own account', () => {
+    const r = resolveRoute(cfg(limited(LIMITS)), { ...fgSmall, inputTokens: 20500, inFlight: {} });
+    assert.equal(r.provider, 'gh-copilot');
+    assert.equal(r.offloadTimeoutMs, undefined);
+    assert.match(r.offloadSkipped, /foreground prompts up to 3000 tokens and this one is ~20500/);
+  });
+
+  it('a call already open on the target keeps a foreground turn off it', () => {
+    const r = resolveRoute(cfg(limited(LIMITS)), { ...fgSmall, inputTokens: 500, inFlight: { 'qwen-local': 1 } });
+    assert.equal(r.provider, 'gh-copilot');
+    assert.match(r.offloadSkipped, /already has 1 call\(s\) in flight \(foreground limit 1\)/);
+  });
+
+  it('calls open on OTHER providers do not count', () => {
+    const r = resolveRoute(cfg(limited(LIMITS)), { ...fgSmall, inputTokens: 500, inFlight: { 'gh-copilot': 4 } });
+    assert.equal(r.provider, 'qwen-local');
+  });
+
+  it('background work ignores the limits', () => {
+    const r = resolveRoute(cfg(limited(LIMITS)), {
+      job: 'bg-observation-writer', network: 'corporate', inputTokens: 20500, inFlight: { 'qwen-local': 3 },
+    });
+    assert.equal(r.provider, 'qwen-local');
+    assert.equal(r.offloadTimeoutMs, undefined);
+  });
+
+  it('an unknown size passes, so /resolve reproduces the config without a prompt', () => {
+    const r = resolveRoute(cfg(limited(LIMITS)), fgSmall);
+    assert.equal(r.provider, 'qwen-local');
+  });
+
+  it('no foreground block means no limits', () => {
+    const r = resolveRoute(cfg(limited(undefined)), { ...fgSmall, inputTokens: 20500, inFlight: { 'qwen-local': 5 } });
+    assert.equal(r.provider, 'qwen-local');
+    assert.equal(r.offloadTimeoutMs, undefined);
+  });
+
+  it('refuses limits on a target that never takes foreground work', () => {
+    assertRejects(
+      { enabled: true, offload_bands: ['small'], targets: [{ provider: 'qwen-local', require_network: 'corporate', enabled: true, scope: ['bg'], foreground: LIMITS }] },
+      'never takes foreground work',
+    );
+  });
+
+  it('refuses an unknown key and a timeout in seconds', () => {
+    assertRejects(limited({ max_tokens: 3000 }), 'unknown key');
+    assertRejects(limited({ timeout_ms: 15 }), 'looks like seconds');
+  });
+
+  it('estimates ~4 bytes per token over messages and tools', () => {
+    const body = { messages: [{ role: 'user', content: 'x'.repeat(4000) }], tools: [{ name: 't' }] };
+    const n = estimateInputTokens(body);
+    assert.ok(n > 1000 && n < 1100, `got ${n}`);
+    assert.equal(estimateInputTokens({}), 1);
   });
 });

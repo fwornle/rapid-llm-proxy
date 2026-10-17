@@ -162,3 +162,17 @@ test('Test 7: migration idempotency — re-opening the same DB does not error or
   const overheadCols = cols.filter(c => c.name === 'overhead_ms');
   assert.equal(overheadCols.length, 1, 'overhead_ms column exists exactly once after a second open');
 });
+
+test('Test 8: bucket size follows the span shown — on a DB younger than the window, 48h / 7 days / all draw the same series', () => {
+  const handle = freshDb();
+  const now = Date.now();
+  for (const ago of [33, 20, 5, 1]) seedRow(handle, now - ago * 3600_000, 1000); // ~33h of data
+  const series = [48, 168, 87600].map((hours) => {
+    const s = getSummary(handle, { hours });
+    return { bucket: s.bucket_minutes, rows: s.by_process_hour.length, total: s.total_tokens };
+  });
+  assert.equal(series[0].bucket, 10, '33h shown → 10-minute buckets');
+  assert.deepEqual(series[1], series[0], '7 days covers the same rows as 48h');
+  assert.deepEqual(series[2], series[0], 'all covers the same rows as 48h');
+  assert.equal(getSummary(handle, { hours: 168, bucketMinutes: 60 }).bucket_minutes, 60, 'an explicit bucketMinutes still wins');
+});

@@ -79,7 +79,7 @@ describe('CopilotProvider', () => {
 
   it('resolves model tiers correctly', () => {
     const models = provider.getModels();
-    expect(models.fast).toBe('claude-haiku-4.5');
+    expect(models.fast).toBe('claude-haiku-5.5');
     expect(models.standard).toBe('claude-sonnet-4.6');
     expect(models.premium).toBe('claude-opus-5');
   });

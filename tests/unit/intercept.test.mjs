@@ -156,3 +156,39 @@ test('close() ends open tunnels, so server.close() does not wait on the agent', 
   await Promise.race([new Promise((r) => own.close(r)), timeout]);
   await ended;
 });
+
+test('setUpstream(): tunnels opened afterwards take the new egress proxy, and its NO_PROXY', async () => {
+  // glass adopts the proxy settings of the newest session's shell while the
+  // daemon runs; before this, the proxy was fixed when the daemon started.
+  const targets = [];
+  const upstream = http.createServer();
+  upstream.on('connect', (req, socket) => { targets.push(req.url); socket.end('HTTP/1.1 502 Bad Gateway\r\n\r\n'); });
+  await new Promise((r) => upstream.listen(0, '127.0.0.1', r));
+  const own = http.createServer();
+  const h = attachIntercept(own, { caDir: dir, hosts: ['api.githubcopilot.com'], onRequest: (req, res) => res.end() });
+  await new Promise((r) => own.listen(0, '127.0.0.1', r));
+  const status = (target) => new Promise((resolve, reject) => {
+    const req = http.request({ host: '127.0.0.1', port: own.address().port, method: 'CONNECT', path: target });
+    req.once('connect', (res, socket) => { socket.destroy(); resolve(res.statusCode); });
+    req.once('error', reject);
+    req.end();
+  });
+  const upstreamUrl = `http://127.0.0.1:${upstream.address().port}`;
+
+  h.setUpstream({ upstreamProxy: upstreamUrl, noProxy: '' });
+  assert.equal(await status('model.example.test:443'), 502);
+  assert.deepEqual(targets, ['model.example.test:443'], 'the tunnel went to the proxy set at runtime');
+
+  h.setUpstream({ upstreamProxy: upstreamUrl, noProxy: 'example.test' });
+  await status('model.example.test:443');
+  assert.equal(targets.length, 1, 'a NO_PROXY host bypasses it');
+
+  h.setUpstream({ upstreamProxy: null });
+  await status('other.example.test:443');
+  assert.equal(targets.length, 1, 'no proxy: dialled directly');
+
+  h.close();
+  own.closeAllConnections();
+  await new Promise((r) => own.close(r));
+  await new Promise((r) => upstream.close(r));
+});

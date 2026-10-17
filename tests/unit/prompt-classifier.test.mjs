@@ -101,6 +101,21 @@ describe('the structural gate', () => {
     assert.equal(r.detail, SKIP.MID_LOOP);
   });
 
+  it('judges a fresh prompt in a later turn even when earlier turns used tools', async () => {
+    // One file read in turn 1 used to make every later turn "mid-loop" for good.
+    const r = await classifyRequest({
+      ...base,
+      messages: [
+        sys('…'), userMsg('read the README'),
+        { role: 'assistant', content: null, tool_calls: [{ id: 'c1', type: 'function', function: { name: 'read', arguments: '{}' } }] },
+        toolResult(), { role: 'assistant', content: 'It is a proxy.' },
+        userMsg('how many rs in strawberry'),
+      ],
+    });
+    assert.equal(r.changed, true);
+    assert.equal(r.band, 'small');
+  });
+
   it('detects a mid-loop turn on the Anthropic wire shape too', async () => {
     const anthropicToolResult = {
       role: 'user',

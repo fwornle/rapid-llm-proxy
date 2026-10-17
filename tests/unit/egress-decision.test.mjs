@@ -16,6 +16,7 @@ import {
   egressIsDegraded,
   shouldRetryAfterEgressRecheck,
   bodyIsReplayable,
+  subprocessProxyEnv,
 } from '../../proxy-bridge/egress-decision.mjs';
 
 const PX = 'http://127.0.0.1:3128';
@@ -293,5 +294,37 @@ describe('decideEgressProxy — a dead pin hands over, it does not drop to direc
       pinnedReachable: false, reachableCandidate: PX,
     });
     assert.equal(d.proxy, null);
+  });
+});
+
+describe('subprocessProxyEnv — the claude CLI follows the egress pin, not the startup env', () => {
+  const started = { PATH: '/bin', HTTPS_PROXY: MUC, https_proxy: MUC, HTTP_PROXY: MUC };
+
+  it('before the first decision, keeps the startup env as it is', () => {
+    assert.deepEqual(subprocessProxyEnv(started, { proxy: null, evaluated: false }), started);
+  });
+
+  it('pinned to a proxy: every proxy variable names it, whatever startup said', () => {
+    const env = subprocessProxyEnv({ PATH: '/bin' }, { proxy: PX, evaluated: true });
+    assert.equal(env.HTTPS_PROXY, PX);
+    assert.equal(env.https_proxy, PX);
+    assert.equal(env.HTTP_PROXY, PX);
+    assert.equal(env.http_proxy, PX);
+  });
+
+  it('direct: a proxy inherited from startup is removed (started on VPN, now at home)', () => {
+    const env = subprocessProxyEnv(started, { proxy: null, evaluated: true });
+    for (const k of ['HTTPS_PROXY', 'https_proxy', 'HTTP_PROXY', 'http_proxy']) assert.equal(k in env, false, k);
+    assert.equal(env.PATH, '/bin');
+  });
+
+  it('a moved pin replaces the stale one', () => {
+    assert.equal(subprocessProxyEnv(started, { proxy: PX, evaluated: true }).HTTPS_PROXY, PX);
+  });
+
+  it('never mutates the env it was given', () => {
+    const base = { ...started };
+    subprocessProxyEnv(base, { proxy: null, evaluated: true });
+    assert.deepEqual(base, started);
   });
 });

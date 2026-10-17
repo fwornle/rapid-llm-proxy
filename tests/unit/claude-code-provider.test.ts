@@ -100,8 +100,8 @@ describe('ClaudeCodeProvider', () => {
       expect((provider as any).resolveCliModel('premium')).toBe('opus');
     });
 
-    it('resolves fast tier to haiku', () => {
-      expect((provider as any).resolveCliModel('fast')).toBe('haiku');
+    it('resolves fast tier to haiku 5.5', () => {
+      expect((provider as any).resolveCliModel('fast')).toBe('claude-haiku-5-5');
     });
   });
 

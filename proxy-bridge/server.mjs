@@ -16,7 +16,7 @@
  *
  * Auth:
  *   - copilot: OAuth tokens from ~/.local/share/opencode/auth.json (written by OpenCode)
- *   - claude-code: OAuth token from macOS keychain (managed by claude CLI)
+ *   - claude-code: OAuth token from the macOS keychain / ~/.claude/.credentials.json (managed by claude CLI)
  *
  * CRITICAL: ANTHROPIC_API_KEY must NOT be passed to the claude CLI subprocess,
  * otherwise it uses the (depleted) API key instead of the Max OAuth subscription.
@@ -43,6 +43,7 @@ import {
   invalidateRoutingConfig,
   explain as explainRoute,
   resolveRoute,
+  estimateInputTokens,
   providerCatalogue,
   providerIdForImpl,
   setConfigWarningLogger,
@@ -89,7 +90,7 @@ import { shouldBypassProxy } from './no-proxy.mjs';
 // every pi turn fell to defaults.fg-chat (high) and never became offloadable.
 // Pure sibling, unit-tested. NOT a content classifier; see the file header.
 import { resolveCallerComplexity } from './caller-complexity.mjs';
-import { classifyRequest, SKIP } from './prompt-classifier.mjs';
+import { classifyRequest, SKIP, BAND_ORDER } from './prompt-classifier.mjs';
 // Rubric + per-impl clients, shared with scripts/eval-prompt-classifier.mjs so the
 // gate measures the prompt this proxy actually sends. See makeClassifierVerdictFn.
 import { makeClassifierVerdictFn as makeClassifierClient, classifierServiceBase } from './classifier-client.mjs';
@@ -102,6 +103,7 @@ import {
   egressIsDegraded,
   shouldRetryAfterEgressRecheck,
   bodyIsReplayable,
+  subprocessProxyEnv,
 } from './egress-decision.mjs';
 // Serialises the routing decision onto the token_usage row. Pure sibling: the
 // empty-string contract for the common case lives there, not here.
@@ -116,8 +118,12 @@ import { resolveRequestTimeout, resolveProviderTimeout } from './request-timeout
 // itself — no agent sends a turn number. Pure sibling, unit-tested; see the file
 // header for why the turn index counts non-tool-result user messages.
 import { turnIdentity } from './turn-identity.mjs';
+// The band a turn's first call got, held for its tool loop — see the file
+// header for why a loop call inherits rather than being re-judged.
+import { createTurnBandMemory, toolsInCurrentTurn, turnBandKey } from './turn-band.mjs';
 import { canonicalizeModelName } from './model-canonical.mjs';
 import { handleAnthropicMessages, ANSWERING_PROVIDER_HEADER } from './anthropic-forward.mjs';
+import { readClaudeCredentials } from './claude-credentials.mjs';
 import { createUsageApi } from './usage-api.mjs';
 // Phase 84-06 (D-05/D-06): the redaction set every preview and raw body goes
 // through before it is written (the SHARED 27-pattern config).
@@ -442,7 +448,8 @@ function corporateProxyCandidates() {
  * 'public' because "we do not know" and "no proxy needed" justify different
  * actions, and conflating them is how a coordinator blip reads as an all-clear.
  */
-let _egressState = { proxy: null, network: null, degraded: false, reason: 'not yet evaluated', since: null };
+const EGRESS_NOT_EVALUATED = 'not yet evaluated';
+let _egressState = { proxy: null, network: null, degraded: false, reason: EGRESS_NOT_EVALUATED, since: null };
 /** Last degraded reason LOGGED, so a persisting state does not log every tick. */
 let _egressDegradedReason = '';
 
@@ -707,11 +714,11 @@ const SETTINGS_PATH = process.env.LLM_PROXY_SETTINGS_PATH
 const DEFAULT_SETTINGS = {
   processOverrides: {},
   providerModels: {
-    'claude-code': ['claude-sonnet-4.6', 'claude-haiku-4.5', 'claude-opus-4.6'],
-    'copilot':     ['claude-sonnet-4.6', 'claude-haiku-4.5', 'claude-opus-4.6', 'gpt-4o', 'gpt-4o-mini'],
+    'claude-code': ['claude-sonnet-4.6', 'claude-haiku-5.5', 'claude-opus-4.6'],
+    'copilot':     ['claude-sonnet-4.6', 'claude-haiku-5.5', 'claude-opus-4.6', 'gpt-4o', 'gpt-4o-mini'],
     'groq':        ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'],
     'openai':      ['gpt-4o', 'gpt-4o-mini'],
-    'anthropic':   ['claude-sonnet-4.6', 'claude-haiku-4.5', 'claude-opus-4.6'],
+    'anthropic':   ['claude-sonnet-4.6', 'claude-haiku-5.5', 'claude-opus-4.6'],
   },
   // Cost/budget config for the dashboard Cost tab. Prices are USD per 1M tokens
   // (public provider rates); the dashboard multiplies raw token counts from
@@ -1033,7 +1040,12 @@ const CLAUDE_CLI = process.env.CLAUDE_CLI_PATH || '/opt/homebrew/bin/claude';
  * CRITICAL: removes ANTHROPIC_API_KEY to force OAuth/Max subscription usage.
  */
 function buildClaudeEnv() {
-  const env = { ...process.env };
+  // The proxy the egress pin is using NOW, not the one this process started
+  // with — the pin moves at runtime and the child would otherwise not follow.
+  const env = subprocessProxyEnv(process.env, {
+    proxy: _egressState.proxy,
+    evaluated: _egressState.reason !== EGRESS_NOT_EVALUATED,
+  });
   delete env.ANTHROPIC_API_KEY;
   delete env.ANTHROPIC_AUTH_TOKEN;
   return env;
@@ -1041,8 +1053,9 @@ function buildClaudeEnv() {
 
 // --- Claude Max OAuth Token (direct-API fast path) ---
 //
-// Reads the Max OAuth bearer token from the macOS keychain (where the `claude`
-// CLI persists it) and exposes it for direct POSTs to api.anthropic.com.
+// Reads the Max OAuth bearer token where the `claude` CLI persists it — the
+// macOS keychain, or ~/.claude/.credentials.json on Linux / WSL
+// (claude-credentials.mjs) and exposes it for direct POSTs to api.anthropic.com.
 // Probed 2026-05-19: a vanilla `Authorization: Bearer <token>` against
 // /v1/messages is accepted by Anthropic, returns ~0.9s total — vs. ~7.5s for
 // the CLI subprocess path which auto-injects ~22K tokens of Claude Code system
@@ -1057,31 +1070,10 @@ function buildClaudeEnv() {
 let _claudeOAuthCache = null;
 const CLAUDE_OAUTH_REFRESH_BUFFER_MS = 60_000;
 
-function readClaudeKeychain() {
-  try {
-    const out = execSync(`security find-generic-password -s 'Claude Code-credentials' -w`, {
-      encoding: 'utf8',
-      timeout: 5_000,
-    });
-    const parsed = JSON.parse(out.trim());
-    const oauth = parsed?.claudeAiOauth;
-    if (!oauth?.accessToken || !oauth?.expiresAt) return null;
-    return {
-      accessToken: oauth.accessToken,
-      expiresAt: Number(oauth.expiresAt),
-      refreshToken: oauth.refreshToken || null,
-      subscriptionType: oauth.subscriptionType || null,
-    };
-  } catch (err) {
-    logErr(`claude-code: keychain read failed: ${(err.message || '').slice(0, 120)}`);
-    return null;
-  }
-}
-
 function getClaudeOAuthToken() {
   const now = Date.now();
   if (!_claudeOAuthCache || (_claudeOAuthCache.expiresAt - now) < CLAUDE_OAUTH_REFRESH_BUFFER_MS) {
-    const fresh = readClaudeKeychain();
+    const fresh = readClaudeCredentials({ log: logErr });
     if (fresh) _claudeOAuthCache = fresh;
   }
   return _claudeOAuthCache;
@@ -1094,12 +1086,13 @@ function getClaudeOAuthToken() {
 // returns the dated snapshot in the response so `model_raw` stays informative.
 const CLAUDE_OAUTH_MODEL_MAP = {
   'sonnet':              'claude-sonnet-4-6',
-  'haiku':               'claude-haiku-4-5',
+  'haiku':               'claude-haiku-5-5',
   // Floating alias → current generation. An explicit claude-opus-4.6 below
   // still resolves to 4.6; only the unversioned alias moves.
   'opus':                'claude-opus-5',
   'claude-sonnet-4.6':   'claude-sonnet-4-6',
   'claude-haiku-4.5':    'claude-haiku-4-5',
+  'claude-haiku-5.5':    'claude-haiku-5-5',
   'claude-opus-4.6':     'claude-opus-4-6',
   'claude-sonnet-4-6':   'claude-sonnet-4-6',
   'claude-haiku-4-5':    'claude-haiku-4-5',
@@ -1212,7 +1205,7 @@ async function probeCopilotEnterpriseReachable() {
 // needed every time Anthropic rotates a snapshot date.
 const ANTHROPIC_MODEL_MAP = {
   'sonnet': 'claude-sonnet-4-6',
-  'haiku': 'claude-haiku-4-5',
+  'haiku': 'claude-haiku-5-5',
   'opus': 'claude-opus-5',
   'claude-sonnet-4.6': 'claude-sonnet-4-6',
   'claude-haiku-4.5': 'claude-haiku-4-5',
@@ -1228,7 +1221,8 @@ function resolveAnthropicModel(model) {
 
 const COPILOT_MODEL_MAP = {
   'sonnet': 'claude-sonnet-4.6',
-  'haiku': 'claude-haiku-4.5',
+  // Probed 2026-10-16: Copilot serves claude-haiku-5.5 (dotted).
+  'haiku': 'claude-haiku-5.5',
   // NOT bumped to opus-5 with the Anthropic maps above, because three records
   // in this repo disagree about whether this leg serves opus at all, and the
   // endpoint (copilot-api.<enterprise>) is unreachable off-corp so none of them
@@ -1255,7 +1249,8 @@ const CLAUDE_MODEL_MAP = {
   'opus': 'opus',
   // Full names → short aliases for CLI
   'claude-sonnet-4.6': 'sonnet',
-  'claude-haiku-4.5': 'haiku',
+  'claude-haiku-4.5': 'claude-haiku-4-5',
+  'claude-haiku-5.5': 'claude-haiku-5-5',
   'claude-opus-4.6': 'opus',
 };
 
@@ -1951,7 +1946,30 @@ function makeClassifierVerdictFn(cls) {
  * indicator would.
  */
 const _processStartedAt = Date.now();
-const classifierStats = { asked: 0, downgraded: 0, unchanged: 0, failed: 0 };
+const classifierStats = { asked: 0, downgraded: 0, unchanged: 0, failed: 0, inherited: 0 };
+
+/**
+ * Classifier verdicts by turn, for foreground routes only. A call inside a tool
+ * loop is never classified; it takes the band its turn's first call was LOWERED
+ * to, from here. In-process like classifierStats: a restart forgets, and a loop
+ * call with no record keeps its declared band — the behaviour before this
+ * existed.
+ */
+const turnBands = createTurnBandMemory();
+
+/**
+ * Calls open on each provider right now, by account id. Read by the offload
+ * target's `foreground.max_in_flight` gate: the cluster slows every call it
+ * serves concurrently (4 tiny calls at once took 12-18s each, against 1.9s
+ * alone), so a foreground turn goes to its own account rather than queue.
+ */
+const inFlightByProvider = {};
+
+function sameCounts(a, b) {
+  const keys = new Set([...Object.keys(a || {}), ...Object.keys(b || {})]);
+  for (const k of keys) if ((a?.[k] || 0) !== (b?.[k] || 0)) return false;
+  return true;
+}
 
 /**
  * How much work actually ran on hardware we own.
@@ -3459,6 +3477,9 @@ const server = http.createServer(async (req, res) => {
         // classifier had to preserve to be built. Passing the VERDICT as a
         // parameter reproduces the decision exactly, without re-deriving it.
         classified: url.searchParams.get('classified') === 'true',
+        // `inherited=true`: the band above was carried over from the first call
+        // of the same turn (band source 'turn'). Same reasoning as `classified`.
+        inherited: url.searchParams.get('inherited') === 'true',
       });
       // Mark which hops are reachable right now. Config and runtime are reported
       // separately and never merged — a provider being logged out is not a
@@ -3974,6 +3995,9 @@ const server = http.createServer(async (req, res) => {
     });
     routeReq.network = networkMode === 'vpn' || networkMode === 'corporate' ? 'corporate' : 'public';
     routeReq.wantsTools = wantsTools;
+    // For the offload target's `foreground:` limits (routing-config.mjs).
+    routeReq.inputTokens = estimateInputTokens(body);
+    routeReq.inFlight = { ...inFlightByProvider };
 
     let routingConfig;
     let decision;
@@ -4006,8 +4030,32 @@ const server = http.createServer(async (req, res) => {
     // one deliberately 500s the request — a classifier is an optimisation and
     // must never be able to fail a call. Every failure path here ends at "keep
     // the band we already had".
+    //
+    // A call inside a tool loop is not classified (the MID_LOOP gate), and it
+    // must not lose its turn's verdict either: a turn lowered to `small` at its
+    // first call stays `small` through the loop instead of jumping back to the
+    // declared band — and off the server holding its KV cache — at the first
+    // tool result. Foreground only, as turnIdentity is: a background job has no
+    // turn. Only a LOWERED band is remembered, so a turn left alone loops on
+    // its declared band exactly as before.
     const clsCfg = routingConfig.classifier;
-    if (clsCfg?.enabled && clsCfg.impl !== 'none') {
+    const fgTurnKey = decision.route.class === 'fg-chat'
+      ? turnBandKey(body.messages, typeof body.agent === 'string' ? body.agent : '')
+      : '';
+    const remembered = fgTurnKey && toolsInCurrentTurn(body.messages) ? turnBands.recall(fgTurnKey) : undefined;
+    const declaredIdx = BAND_ORDER.indexOf(decision.route.complexity);
+    const delegated = decision.route.complexitySource === 'caller'
+      || String(decision.route.complexitySource || '').startsWith('defaults.');
+    if (clsCfg?.enabled && clsCfg.impl !== 'none' && remembered && delegated
+      && BAND_ORDER.indexOf(remembered.band) >= 0 && BAND_ORDER.indexOf(remembered.band) < declaredIdx) {
+      // Downgrade-only still holds: a remembered band is applied only when it is
+      // below what this call declares, and only while the classifier is on.
+      classifierStats.inherited += 1;
+      classifierNote = `inherited ${remembered.band} from this turn's first call`;
+      routeReq.complexity = remembered.band;
+      routeReq.inherited = true;
+      decision = explainRoute(routingConfig, routeReq);
+    } else if (clsCfg?.enabled && clsCfg.impl !== 'none') {
       try {
         const verdict = await classifyRequest({
           enabled: true,
@@ -4025,6 +4073,7 @@ const server = http.createServer(async (req, res) => {
           routeReq.complexity = verdict.band;
           routeReq.classified = true;
           decision = explainRoute(routingConfig, routeReq);
+          turnBands.remember(fgTurnKey, { band: verdict.band });
         } else if (/^classifier error/.test(verdict.detail || '')) {
           // Counted apart from `unchanged`, because the two mean opposite
           // things about the classifier: one is it working and declining to
@@ -4044,6 +4093,15 @@ const server = http.createServer(async (req, res) => {
         classifierStats.failed += 1;
         classifierNote = `classifier skipped: ${e?.message || 'unknown error'}`;
       }
+    }
+
+    // The in-flight count may have moved while the classifier was asked (~5s),
+    // and a foreground limit of one call must see the calls that started
+    // meanwhile. Resolving is pure and free, so resolve once more on the
+    // current count rather than let two turns both claim the one slot.
+    if (!sameCounts(routeReq.inFlight, inFlightByProvider)) {
+      routeReq.inFlight = { ...inFlightByProvider };
+      decision = explainRoute(routingConfig, routeReq);
     }
 
     // Config says where it should go; initProviders() says what is actually
@@ -4109,6 +4167,12 @@ const server = http.createServer(async (req, res) => {
       // CLAUDE_FAMILY special case, which carried one pinned model across
       // "similar" providers and could hand groq a Claude model id.
       const callBody = { ...body, model: routedModel };
+      // An offloaded foreground call runs under the target's foreground
+      // ceiling; resolveRequestTimeout then caps it at the provider's own.
+      if (decision.route.offloadTimeoutMs && decision.route.offloadedFrom && providerName === decision.route.provider) {
+        const asked = Number(body.timeout);
+        callBody.timeout = asked > 0 ? Math.min(asked, decision.route.offloadTimeoutMs) : decision.route.offloadTimeoutMs;
+      }
       // Per-ATTEMPT clock, distinct from startTime (the whole-request clock that
       // latency_ms is measured against). A trail entry saying "gh-copilot failed
       // after 1203ms" must mean this hop, not time since the request arrived —
@@ -4120,29 +4184,34 @@ const server = http.createServer(async (req, res) => {
         log(`${providerName}: model=${routedModel} messages=${callBody.messages?.length || 0} method=${providerInfo.method}${isFallback ? ` (fallback from ${chain[0].provider})` : ''}`);
 
         let result;
-        if (impl === 'claude-code') {
-          result = await completeClaudeCode(callBody, reqAbort.signal);
-        } else if (impl === 'anthropic') {
-          result = await completeAnthropic(callBody);
-        } else if (impl === 'openai') {
-          result = await completeOpenAI(callBody);
-        } else if (impl === 'groq') {
-          result = await completeGroq(callBody);
-        } else if (impl === 'copilot') {
-          result = callBody.responses_body && /^gpt-5\./.test(routedModel)
-            ? await completeCopilotResponses(callBody)
-            : await completeCopilot(callBody);
-        } else if (impl === 'qwen-local') {
-          result = await completeQwenLocal(callBody);
-        } else if (impl === 'qwen-laptop') {
-          result = await completeQwenLaptop(callBody);
-        } else if (providerPlugins[impl]) {
-          result = await providerPlugins[impl].complete(callBody);
-        } else {
-          // Unreachable via config (an enabled provider must declare an impl,
-          // enforced at load), so this only fires if someone adds a provider to
-          // the yaml without adding its dispatch arm here or a provider module. Say which.
-          throw new Error(`PROVIDER_UNAVAILABLE: provider "${providerName}" declares impl "${impl}", which has no dispatch arm in server.mjs and no provider module`);
+        inFlightByProvider[providerName] = (inFlightByProvider[providerName] || 0) + 1;
+        try {
+          if (impl === 'claude-code') {
+            result = await completeClaudeCode(callBody, reqAbort.signal);
+          } else if (impl === 'anthropic') {
+            result = await completeAnthropic(callBody);
+          } else if (impl === 'openai') {
+            result = await completeOpenAI(callBody);
+          } else if (impl === 'groq') {
+            result = await completeGroq(callBody);
+          } else if (impl === 'copilot') {
+            result = callBody.responses_body && /^gpt-5\./.test(routedModel)
+              ? await completeCopilotResponses(callBody)
+              : await completeCopilot(callBody);
+          } else if (impl === 'qwen-local') {
+            result = await completeQwenLocal(callBody);
+          } else if (impl === 'qwen-laptop') {
+            result = await completeQwenLaptop(callBody);
+          } else if (providerPlugins[impl]) {
+            result = await providerPlugins[impl].complete(callBody);
+          } else {
+            // Unreachable via config (an enabled provider must declare an impl,
+            // enforced at load), so this only fires if someone adds a provider to
+            // the yaml without adding its dispatch arm here or a provider module. Say which.
+            throw new Error(`PROVIDER_UNAVAILABLE: provider "${providerName}" declares impl "${impl}", which has no dispatch arm in server.mjs and no provider module`);
+          }
+        } finally {
+          inFlightByProvider[providerName] -= 1;
         }
 
         const latencyMs = Date.now() - startTime;

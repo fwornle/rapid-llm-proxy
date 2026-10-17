@@ -240,6 +240,47 @@ function describeTargets(sr) {
   return list.length ? list.join(', ') : 'none declared';
 }
 
+/**
+ * Why a target's `foreground:` limits keep this call off it, or null when they
+ * do not. An unknown size or in-flight count passes: /api/llm/routing/resolve
+ * has no prompt, and must keep reproducing the config's decision without one.
+ *
+ * @param {{provider: string, foreground?: {maxInputTokens: number|null, maxInFlight: number|null}|null}} target
+ * @param {{inputTokens?: number, inFlight?: Record<string, number>}} live
+ * @returns {string|null}
+ */
+export function foregroundLimitReason(target, { inputTokens, inFlight } = {}) {
+  const lim = target?.foreground;
+  if (!lim) return null;
+  if (lim.maxInputTokens != null && Number.isFinite(inputTokens) && inputTokens > lim.maxInputTokens) {
+    return `target "${target.provider}" takes foreground prompts up to ${lim.maxInputTokens} tokens and this one is ~${inputTokens}`;
+  }
+  const open = inFlight?.[target.provider] ?? 0;
+  if (lim.maxInFlight != null && open >= lim.maxInFlight) {
+    return `target "${target.provider}" already has ${open} call(s) in flight (foreground limit ${lim.maxInFlight})`;
+  }
+  return null;
+}
+
+/**
+ * Rough input size of a request, for the `foreground.max_input_tokens` gate:
+ * ~4 bytes per token over the messages and tool definitions it would send.
+ * Coarse on purpose — the gate separates a 500-token title call from a
+ * 20K-token first turn, and nothing near the line needs a tokenizer.
+ *
+ * @param {{messages?: unknown, tools?: unknown}} body
+ * @returns {number}
+ */
+export function estimateInputTokens(body) {
+  let bytes = 0;
+  try {
+    bytes = JSON.stringify(body?.messages ?? []).length + JSON.stringify(body?.tools ?? []).length;
+  } catch {
+    return 0;
+  }
+  return Math.ceil(bytes / 4);
+}
+
 /** Job classes. A job id starting with `fg-` is foreground; everything else is background. */
 export function jobClass(job) {
   return String(job || '').startsWith('fg-') ? 'fg-chat' : 'background';
@@ -590,8 +631,9 @@ export function parseRoutingConfig(routingDoc, fallbackDoc) {
   //     still reproducible from the config alone, without the prompt.
   //
   // The hot-path cost is real and bounded by a structural gate that runs first:
-  // a turn already carrying tool results is never classified, which on measured
-  // traffic is 63% of them.
+  // a call inside a tool loop is never classified — it inherits the band its
+  // turn's first call got (turn-band.mjs, recorded as band source 'turn') — so
+  // the classifier is asked at most once per human prompt.
   let semanticRouting = { enabled: false, targets: [], offloadBands: [] };
   if (routingDoc.semantic_routing != null) {
     const where = 'llm-routing.yaml semantic_routing';
@@ -776,6 +818,62 @@ export function parseRoutingConfig(routingDoc, fallbackDoc) {
           bandScopes[one] = forBand;
         }
       }
+      // ── foreground (per target) ──
+      //
+      // Limits on the FOREGROUND work this endpoint takes, because someone is
+      // waiting on it and the cluster's cost is not the per-call figure the
+      // bands were tuned on. Measured against the cluster directly 2026-10-12,
+      // with no other proxy traffic on it:
+      //
+      //   ~24 in, dual-fast               1.9s   (the floor at any size)
+      //   ~2K in, uncached / cached       6.7s / 1.95s
+      //   ~20K in, uncached / cached     38.8s / 2.2s   (prefill ~540 tok/s)
+      //   4 tiny calls at once           12-18s each
+      //   time to first byte             = total: nothing streams
+      //
+      // An agent's first turn carries 20-28K tokens of system prompt and tool
+      // definitions, so an offloaded one spends 40-55s in prefill and hits the
+      // 60s ceiling; five-prompt test 2026-10-12: opencode and copilot first
+      // turns both timed out and fell back after ~61s. Small calls that
+      // overlapped them took 29-39s. And since nothing streams, the ceiling is a
+      // bound on the whole answer, not on the wait for its first token.
+      //
+      //   max_input_tokens  a larger prompt is not offloaded (estimated, ~4
+      //                     bytes per token over messages + tools)
+      //   timeout_ms        the ceiling for an offloaded foreground call; caps
+      //                     the provider's own timeout_ms, never raises it
+      //   max_in_flight     with this many calls (fg OR bg) already open on the
+      //                     target, a foreground call is not offloaded rather
+      //                     than queued behind them
+      //
+      // Background work is untouched: nobody is waiting on it, and its prompts
+      // are what the per-band timeout_ms on the provider was measured against.
+      let foreground = null;
+      if (t.foreground != null) {
+        const fw = `${tw}.foreground`;
+        if (!isPlainObject(t.foreground)) fail(fw, 'must be a mapping of max_input_tokens / timeout_ms / max_in_flight');
+        const KNOWN = ['max_input_tokens', 'timeout_ms', 'max_in_flight'];
+        for (const k of Object.keys(t.foreground)) {
+          if (!KNOWN.includes(k)) fail(`${fw}.${k}`, `unknown key (expected one of ${KNOWN.join(', ')})`);
+        }
+        if (!scope.includes('fg')) {
+          fail(fw, `this target's scope is [${scope.join(', ')}] — it never takes foreground work, so these limits could never apply`);
+        }
+        const positiveInt = (v, key) => {
+          if (v == null) return null;
+          if (!Number.isInteger(v) || v <= 0) fail(`${fw}.${key}`, 'must be a positive whole number');
+          return v;
+        };
+        const timeoutMs = positiveInt(t.foreground.timeout_ms, 'timeout_ms');
+        if (timeoutMs != null && timeoutMs < 1000) {
+          fail(`${fw}.timeout_ms`, `${timeoutMs} looks like seconds — this field is MILLISECONDS, and a sub-second timeout would fail every call`);
+        }
+        foreground = {
+          maxInputTokens: positiveInt(t.foreground.max_input_tokens, 'max_input_tokens'),
+          timeoutMs,
+          maxInFlight: positiveInt(t.foreground.max_in_flight, 'max_in_flight'),
+        };
+      }
       // Routable-provider checks apply only where work can actually land: the
       // offload must be on AND this target enabled. A block that is switched
       // off may name a provider that is itself still disabled — the normal state
@@ -835,6 +933,8 @@ export function parseRoutingConfig(routingDoc, fallbackDoc) {
         // map for the same reason as above: the list form must keep tracking
         // `scope` if someone later edits it.
         bandScopes,
+        // null when the target declares no `foreground:` block — no limits.
+        foreground,
       });
     }
 
@@ -1156,7 +1256,8 @@ export function invalidateRoutingConfig() {
  * @returns {{provider: string, model: string, complexity: string, matchedKey: string, step: number, class: string, offloadedFrom?: string}}
  */
 export function resolveRoute(config, {
-  job, agent, complexity, network, classified = false, requestedModel,
+  job, agent, complexity, network, classified = false, inherited = false, requestedModel,
+  inputTokens, inFlight,
 } = {}) {
   const cls = jobClass(job);
   const jobId = String(job || '');
@@ -1195,7 +1296,12 @@ export function resolveRoute(config, {
       // unanswerable, which is precisely the objection the classifier had to
       // survive to be built at all. server.mjs resolves twice: once to learn the
       // declared band, then again with the verdict and this flag set.
-      bandSource = classified ? 'classifier' : 'caller';
+      //
+      // `inherited` marks a band carried over from the first call of the same
+      // turn (turn-band.mjs): a call inside a tool loop is never classified, so
+      // it takes its turn's verdict instead — and says so, as 'turn', rather
+      // than passing off a remembered verdict as a fresh one.
+      bandSource = inherited ? 'turn' : classified ? 'classifier' : 'caller';
     } else {
       band = config.defaults[cls].complexity;
       bandSource = `defaults.${cls} (route asked for ${FROM_CALLER}, caller supplied ${asked ? `unknown "${asked}"` : 'nothing'})`;
@@ -1260,6 +1366,12 @@ export function resolveRoute(config, {
       // wrong place to defend against this, because a band is a statement about
       // how hard the work is, not about which wire it arrives on.
       offloadSkipped = `route provider "${entry.provider}" serves a foreground transport (${config.providers[entry.provider].fgTransport}) that "${target.provider}" cannot`;
+    } else if (cls === 'fg-chat' && foregroundLimitReason(target, { inputTokens, inFlight })) {
+      // Someone is waiting, and this call would make them wait longer on the
+      // target than on the account it came from: too large a prompt to prefill
+      // inside the foreground ceiling, or other calls already open on the box.
+      // See `foreground:` in the target parser for the measurements.
+      offloadSkipped = foregroundLimitReason(target, { inputTokens, inFlight });
     } else {
       offloadedFrom = entry.provider;
       entry = { ...entry, provider: target.provider };
@@ -1291,6 +1403,10 @@ export function resolveRoute(config, {
     // Present only when the offload actually moved the call, so every existing
     // consumer of this object is unaffected when semantic routing is off.
     ...(offloadedFrom ? { offloadedFrom } : {}),
+    // The foreground ceiling for the offloaded hop. Only the hop that runs on
+    // the target takes it; the fallbacks keep their own timeouts.
+    ...(offloadedFrom && cls === 'fg-chat' && target.foreground?.timeoutMs
+      ? { offloadTimeoutMs: target.foreground.timeoutMs } : {}),
     // Why it did NOT move, when semantic routing is on and this route was a
     // candidate. Answering "why is this still on copilot?" without it means
     // re-deriving the policy by hand, which is the thing this module exists to
@@ -1411,10 +1527,19 @@ export function explain(config, req = {}) {
       // resolve identically whether a caller declared it or a classifier lowered
       // it to that value, and only this field says which was being asked about.
       classified: req.classified === true,
+      inherited: req.inherited === true,
     },
     route,
     chain,
     skipped,
+    // How the request is carried. 'anthropic-passthrough' for foreground Claude
+    // Code: /v1/messages forwards it verbatim to the one provider carrying
+    // fg_transport, so the chain past its head is never tried — there is no
+    // fallback. Readers that show a fallback (the status-line network report)
+    // must check this first; it used to list one for claude that never ran.
+    transport: route.matchedKey === 'fg-chat/claude'
+      ? (config.providers[route.provider]?.fgTransport || null)
+      : null,
     // A one-line human summary, identical in the log and in the UI.
     summary: chain.length
       ? `${route.matchedKey} (${step}) -> ${chain.map(c => `${c.provider}/${c.model}`).join(' > ')}`
