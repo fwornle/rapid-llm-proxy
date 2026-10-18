@@ -120,7 +120,9 @@ import { resolveRequestTimeout, resolveProviderTimeout } from './request-timeout
 import { turnIdentity } from './turn-identity.mjs';
 // The band a turn's first call got, held for its tool loop — see the file
 // header for why a loop call inherits rather than being re-judged.
-import { createTurnBandMemory, toolsInCurrentTurn, turnBandKey } from './turn-band.mjs';
+import {
+  createTurnBandMemory, nextSessionRecord, sessionTurn, sessionVerdict, toolsInCurrentTurn, turnBandKey,
+} from './turn-band.mjs';
 import { canonicalizeModelName } from './model-canonical.mjs';
 import { handleAnthropicMessages, ANSWERING_PROVIDER_HEADER } from './anthropic-forward.mjs';
 import { readClaudeCredentials } from './claude-credentials.mjs';
@@ -1946,7 +1948,7 @@ function makeClassifierVerdictFn(cls) {
  * indicator would.
  */
 const _processStartedAt = Date.now();
-const classifierStats = { asked: 0, downgraded: 0, unchanged: 0, failed: 0, inherited: 0 };
+const classifierStats = { asked: 0, downgraded: 0, unchanged: 0, failed: 0, inherited: 0, promoted: 0 };
 
 /**
  * Classifier verdicts by turn, for foreground routes only. A call inside a tool
@@ -1956,6 +1958,18 @@ const classifierStats = { asked: 0, downgraded: 0, unchanged: 0, failed: 0, inhe
  * existed.
  */
 const turnBands = createTurnBandMemory();
+
+/**
+ * Per foreground session, whether it has had a turn lowered to an offloaded
+ * band and whether a later turn has since promoted it (turn-band.mjs). A turn of
+ * a promoted session is not classified: the session stays on its declared band,
+ * and off the local server, for good. Two hours, about as long as a cluster
+ * keeps an idle session's cache warm.
+ */
+const sessionBands = createTurnBandMemory({ ttlMs: 2 * 60 * 60_000 });
+
+/** Classifier outcomes that are a judgement of the turn, for the session record. */
+const JUDGED_SKIPS = new Set([SKIP.ALREADY_LOWEST, SKIP.VETOED]);
 
 /**
  * Calls open on each provider right now, by account id. Read by the offload
@@ -4042,11 +4056,22 @@ const server = http.createServer(async (req, res) => {
     const fgTurnKey = decision.route.class === 'fg-chat'
       ? turnBandKey(body.messages, typeof body.agent === 'string' ? body.agent : '')
       : '';
-    const remembered = fgTurnKey && toolsInCurrentTurn(body.messages) ? turnBands.recall(fgTurnKey) : undefined;
+    const fgInLoop = Boolean(fgTurnKey) && toolsInCurrentTurn(body.messages);
+    const remembered = fgInLoop ? turnBands.recall(fgTurnKey) : undefined;
     const declaredIdx = BAND_ORDER.indexOf(decision.route.complexity);
     const delegated = decision.route.complexitySource === 'caller'
       || String(decision.route.complexitySource || '').startsWith('defaults.');
-    if (clsCfg?.enabled && clsCfg.impl !== 'none' && remembered && delegated
+    // A turn's first call in a promoted session is not classified: the session
+    // keeps its declared band, and its cache where that band runs.
+    const fgSession = fgTurnKey && !fgInLoop
+      ? sessionTurn(body.messages, typeof body.agent === 'string' ? body.agent : '')
+      : { sessionKey: '', turn: 0 };
+    const sessionRecord = fgSession.sessionKey ? sessionBands.recall(fgSession.sessionKey) : undefined;
+    const promoted = sessionVerdict(sessionRecord, fgSession.turn);
+    let judged = false;
+    if (clsCfg?.enabled && clsCfg.impl !== 'none' && promoted && delegated) {
+      classifierNote = `session promoted at turn ${promoted.since} (band ${promoted.band}): not classified`;
+    } else if (clsCfg?.enabled && clsCfg.impl !== 'none' && remembered && delegated
       && BAND_ORDER.indexOf(remembered.band) >= 0 && BAND_ORDER.indexOf(remembered.band) < declaredIdx) {
       // Downgrade-only still holds: a remembered band is applied only when it is
       // below what this call declares, and only while the classifier is on.
@@ -4067,6 +4092,7 @@ const server = http.createServer(async (req, res) => {
           verdictFn: makeClassifierVerdictFn(clsCfg),
         });
         classifierNote = verdict.detail || '';
+        judged = verdict.changed || JUDGED_SKIPS.has(verdict.detail || '');
         if (verdict.changed) {
           classifierStats.asked += 1;
           classifierStats.downgraded += 1;
@@ -4088,10 +4114,24 @@ const server = http.createServer(async (req, res) => {
           // the downgrade rate look far worse than the judge is.
           classifierStats.asked += 1;
           classifierStats.unchanged += 1;
+          judged = true;
         }
       } catch (e) {
         classifierStats.failed += 1;
         classifierNote = `classifier skipped: ${e?.message || 'unknown error'}`;
+      }
+    }
+    // What this turn leaves for the session's later turns. Only a judged turn
+    // counts: a classifier that failed says nothing about how hard the turn was.
+    if (judged && fgSession.sessionKey) {
+      const sr = routingConfig.semanticRouting;
+      const band = decision.route.complexity;
+      const next = nextSessionRecord(sessionRecord, {
+        turn: fgSession.turn, band, offloadable: Boolean(sr?.enabled && sr.offloadBands.includes(band)),
+      });
+      if (next) {
+        if (next.promoted) classifierStats.promoted += 1;
+        sessionBands.remember(fgSession.sessionKey, next);
       }
     }
 

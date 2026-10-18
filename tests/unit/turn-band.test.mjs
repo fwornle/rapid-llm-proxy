@@ -1,13 +1,16 @@
 /**
  * turn-band.mjs — "is this call inside its turn's tool loop?" on both wires, and
- * the bounded, expiring memory of what each turn's first call decided.
+ * the bounded, expiring memory of what each turn's first call decided, and the
+ * session rule built on it (offloaded sessions stay, a promotion is final).
  *
  * Run: node --test tests/unit/turn-band.test.mjs
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { toolsInCurrentTurn, turnBandKey, createTurnBandMemory } from '../../proxy-bridge/turn-band.mjs';
+import {
+  toolsInCurrentTurn, turnBandKey, createTurnBandMemory, sessionTurn, sessionVerdict, nextSessionRecord,
+} from '../../proxy-bridge/turn-band.mjs';
 
 const sys = (t) => ({ role: 'system', content: t });
 const user = (t) => ({ role: 'user', content: t });
@@ -93,5 +96,34 @@ describe('createTurnBandMemory', () => {
     t = 180; assert.ok(m.recall('a'), 'the recall at 90 refreshed it');
     t = 400; assert.equal(m.recall('a'), undefined);
     assert.equal(m.size(), 0);
+  });
+});
+
+describe('session rule', () => {
+  it('sessionTurn: one key for the whole session, per agent; the turn moves with each human prompt', () => {
+    const t1 = [sys('s'), user('fix it')];
+    const a = sessionTurn(t1, 'pi');
+    assert.equal(a.turn, 1);
+    const b = sessionTurn([...t1, oaCall(), oaResult(), asst('ok'), user('next')], 'pi');
+    assert.equal(b.sessionKey, a.sessionKey);
+    assert.equal(b.turn, 2);
+    assert.notEqual(sessionTurn(t1, 'opencode').sessionKey, a.sessionKey);
+    assert.deepEqual(sessionTurn([sys('only system')], 'pi'), { sessionKey: '', turn: 0 });
+  });
+
+  it('an offloaded session is promoted by a later turn above the offloaded band, and never demoted', () => {
+    let rec = nextSessionRecord(undefined, { turn: 1, band: 'small', offloadable: true });
+    assert.deepEqual(rec, { offloaded: true, band: 'small', turn: 1 });
+    assert.equal(sessionVerdict(rec, 2), null, 'an offloaded session is still judged per turn');
+    rec = nextSessionRecord(rec, { turn: 2, band: 'medium', offloadable: false });
+    assert.deepEqual(rec, { promoted: true, band: 'medium', promotedAt: 2 });
+    assert.equal(sessionVerdict(rec, 2), null, 'a retry of the promoting turn is judged afresh');
+    assert.deepEqual(sessionVerdict(rec, 3), { promoted: true, band: 'medium', since: 2 });
+    assert.equal(nextSessionRecord(rec, { turn: 3, band: 'small', offloadable: true }), undefined);
+  });
+
+  it('a session never offloaded is not promoted: it is judged per turn as before', () => {
+    assert.equal(nextSessionRecord(undefined, { turn: 1, band: 'medium', offloadable: false }), undefined);
+    assert.equal(sessionVerdict(undefined, 5), null);
   });
 });

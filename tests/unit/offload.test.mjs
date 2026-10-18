@@ -226,6 +226,32 @@ test('turn band: a target failure moves the rest of the turn to the provider', a
   assert.match(JSON.parse(lastRow().attempt_trail).offloadSkipped, /first call stayed on the provider \(Team Box failed: HTTP 503/);
 });
 
+test('session: an offloaded session promoted by a medium turn stays on the provider for later small turns', async () => {
+  const o = createOffloader({ fetch, getConfig: () => cfg, health });
+  const t1 = [{ role: 'user', content: 'capital of Portugal? (session promotion)' }];
+  assert.equal((await o.decide({ agent: 'copilot', wire: 'chat', body: easy({ messages: t1 }) })).offload, true);
+  const t2 = [...t1, { role: 'assistant', content: 'Lisbon.' }, { role: 'user', content: 'now refactor the router' }];
+  assert.equal((await o.decide({ agent: 'copilot', wire: 'chat', body: easy({ model: 'claude-sonnet-5', messages: t2 }) })).reason,
+    'band medium not offloaded');
+  assert.equal(o.counters.promoted, 1);
+  const t3 = [...t2, { role: 'assistant', content: 'Done.' }, { role: 'user', content: 'and of Spain?' }];
+  const d3 = await o.decide({ agent: 'copilot', wire: 'chat', body: easy({ messages: t3 }) });
+  assert.equal(d3.offload, false);
+  assert.equal(d3.bandSource, 'session');
+  assert.equal(d3.reason, 'session promoted to the provider at turn 2 (band medium)');
+  // ...and its tool loop follows the turn's first call onto the provider.
+  const d3loop = await o.decide({ agent: 'copilot', wire: 'chat', body: loopOf(easy({ messages: t3 })) });
+  assert.match(d3loop.reason, /first call stayed on the provider \(session promoted/);
+});
+
+test('session: a session that started on the provider is still offloaded when a later turn is small', async () => {
+  const o = createOffloader({ fetch, getConfig: () => cfg, health });
+  const t1 = [{ role: 'user', content: 'refactor the router (session never offloaded)' }];
+  assert.equal((await o.decide({ agent: 'copilot', wire: 'chat', body: easy({ model: 'claude-sonnet-5', messages: t1 }) })).offload, false);
+  const t2 = [...t1, { role: 'assistant', content: 'Done.' }, { role: 'user', content: 'capital of Portugal?' }];
+  assert.equal((await o.decide({ agent: 'copilot', wire: 'chat', body: easy({ messages: t2 }) })).offload, true);
+});
+
 test('offloaded: the target answers with its own key; the agent login never reaches it', async () => {
   upstreamSeen.length = 0; targetSeen.length = 0;
   const r = await post(easy({ stream: true }));
