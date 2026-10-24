@@ -728,7 +728,13 @@ const DEFAULT_SETTINGS = {
   // Two canonical budget buckets = the two real subscriptions: `copilot`
   // (usage-based credits, real monthly cap) and `claude-max` (flat sub, notional).
   cost: {
-    currency: { display: 'EUR', usdToEur: 0.92 },
+    // Copilot bought through a cloud contract costs token dollars × the
+    // contract's discount ÷ FX. FX applies to every account; a discount is an
+    // organisation's own (`discount: { copilot: 0.8 }` = 20% off), set in the
+    // saved settings — none by default. Per-model Copilot rates live in coding's
+    // lib/cost/copilot-pricing.mjs — not repeated here, so one table can go
+    // stale, not two.
+    currency: { display: 'EUR', usdPerEur: 1.18 },
     // Keyed by canonical model name; the dashboard resolves version/date
     // variants (claude-opus-4-8, ...-20251001) by family fallback (any *opus*
     // → the opus row), so this list only needs one entry per family.
@@ -748,12 +754,12 @@ const DEFAULT_SETTINGS = {
     // budgetBasis: 'gross' compares projected gross usage cost to the cap;
     // 'overage' compares only spend above the included allowance.
     // `monthlyEur` is the standing cap; `monthlyEurByMonth` overrides it for
-    // named months. A cap is not a constant — this one went 300 -> 600 -> 1000
-    // during 2026-08 as extensions were approved — and without the history a
-    // single number retroactively re-judges every past month against a budget it
-    // never had, reporting July as comfortably inside a cap that did not exist.
+    // named months. A cap is not a constant — it rises as extensions are
+    // approved — and without the history a single number retroactively re-judges
+    // every past month against a budget it never had. No cap by default: a
+    // budget is the user's own, set in their saved settings.
     budgets: {
-      copilot:     { monthlyEur: 300,  monthlyEurByMonth: { '2026-08': 1000 }, enforce: true,  budgetBasis: 'gross' },
+      copilot:     { monthlyEur: null, enforce: true,  budgetBasis: 'gross' },
       'claude-max': { monthlyEur: null, enforce: false, budgetBasis: 'gross' },
     },
   },

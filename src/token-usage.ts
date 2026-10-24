@@ -1465,7 +1465,30 @@ export function scopeClause(scope: UsageScope | undefined): { sql: string; param
   return { sql: '', params: [] };
 }
 
-export function getSummary(handle: TokenUsageDb, opts: { hours?: number; bucketMinutes?: number; scope?: UsageScope } = {}): {
+/**
+ * One priceable unit of the summary: a bucket × process × provider × model with
+ * the four token kinds kept apart. Only returned on request (`cells: true`).
+ *
+ * The pivots above fold the kinds into one total, which is right for a token
+ * chart and useless for money: a cache read costs a tenth of fresh input, a
+ * write 1.25x, and the same model is priced differently per account (Copilot
+ * vs a metered key vs a flat subscription). The dashboard's €/$ view prices
+ * these cells client-side — where the price table lives — and re-pivots them,
+ * so the money chart and the token chart describe exactly the same rows.
+ */
+export interface SummaryCell {
+  hour: string;
+  process: string;
+  provider: string;
+  model: string;
+  calls: number;
+  input_tokens: number;
+  output_tokens: number;
+  cache_read_tokens: number;
+  cache_write_tokens: number;
+}
+
+export function getSummary(handle: TokenUsageDb, opts: { hours?: number; bucketMinutes?: number; scope?: UsageScope; cells?: boolean } = {}): {
   hours: number;
   bucket_minutes: number;
   scope: UsageScope;
@@ -1489,6 +1512,8 @@ export function getSummary(handle: TokenUsageDb, opts: { hours?: number; bucketM
   by_process_hour: Array<Record<string, number | string>>;
   by_model_hour: Array<Record<string, number | string>>;
   by_provider_hour: Array<Record<string, number | string>>;
+  cells?: SummaryCell[];
+  local_providers?: string[];
 } {
   const hours = opts.hours ?? 24;
   // Foreground/background restriction, applied to EVERY aggregate below so the
@@ -1785,6 +1810,34 @@ export function getSummary(handle: TokenUsageDb, opts: { hours?: number; bucketM
     by_provider_hour.push(row);
   }
 
+  // Opt-in: the priceable breakdown (see SummaryCell). Absent by default so the
+  // token view's payload — polled every 30s — does not grow by a table it never
+  // reads.
+  const cells = opts.cells
+    ? (handle.db.prepare(`
+        SELECT (strftime('%s', timestamp) / ${bucketSeconds}) * ${bucketSeconds} AS bucket_sec,
+               process, provider, model,
+               COUNT(*) AS calls,
+               SUM(input_tokens)  AS input_tokens,
+               SUM(output_tokens) AS output_tokens,
+               SUM(cache_read_tokens)  AS cache_read_tokens,
+               SUM(cache_write_tokens) AS cache_write_tokens
+        FROM token_usage WHERE timestamp >= ?${sc.sql}
+        GROUP BY bucket_sec, process, provider, model
+        ORDER BY bucket_sec
+      `).all(since, ...sc.params) as Array<Record<string, number | string>>).map((c) => ({
+        hour: new Date(Number(c.bucket_sec) * 1000).toISOString(),
+        process: String(c.process),
+        provider: String(c.provider),
+        model: String(c.model),
+        calls: Number(c.calls) || 0,
+        input_tokens: Number(c.input_tokens) || 0,
+        output_tokens: Number(c.output_tokens) || 0,
+        cache_read_tokens: Number(c.cache_read_tokens) || 0,
+        cache_write_tokens: Number(c.cache_write_tokens) || 0,
+      }))
+    : undefined;
+
   return {
     hours,
     bucket_minutes: bucketMinutes,
@@ -1798,7 +1851,26 @@ export function getSummary(handle: TokenUsageDb, opts: { hours?: number; bucketM
     avg_latency_ms: totals.avg_latency_ms,
     by_process, by_provider, by_model, by_provider_model, by_subscription, by_hour,
     process_keys, model_keys, provider_keys, by_process_hour, by_model_hour, by_provider_hour,
+    ...(cells ? { cells, local_providers: localProviders(handle) } : {}),
   };
+}
+
+/**
+ * Providers that have served an OFFLOADED call — the user's own hardware.
+ *
+ * A pricing read needs to know which accounts cost nothing per token, and the
+ * provider id cannot say: glass names the offload target after whatever the
+ * user typed (`team-qwen`, `lab-cluster`). `offloaded_from` is set on exactly
+ * the rows that target served, so it is the one signal that holds on every
+ * installation. Except: coding's router stamps it on a call that was offered to
+ * the offload chain and then served by the original provider after all (6.5K
+ * gh-copilot rows with offloaded_from = gh-copilot) — so a row only counts when
+ * someone else served it.
+ */
+export function localProviders(handle: TokenUsageDb): string[] {
+  return (handle.db.prepare(
+    `SELECT DISTINCT provider FROM token_usage WHERE offloaded_from != '' AND provider != offloaded_from`
+  ).all() as Array<{ provider: string }>).map((r) => r.provider);
 }
 
 /**
@@ -1841,7 +1913,7 @@ export function getRecent(
 export function getCost(
   handle: TokenUsageDb,
   opts: { months?: number; now?: Date } = {},
-): { since: string; months: number; generatedAt: string; rows: Array<Record<string, unknown>> } {
+): { since: string; months: number; generatedAt: string; rows: Array<Record<string, unknown>>; local_providers: string[] } {
   const months = Math.min(36, Math.max(1, opts.months ?? 6));
   const now = opts.now ?? new Date();
   const cut = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (months - 1), 1));
@@ -1868,7 +1940,7 @@ export function getCost(
     GROUP BY month, provider, model, process, scope
     ORDER BY month DESC, input_tokens DESC
   `).all(...FOREGROUND_USER_HASHES, since) as Array<Record<string, unknown>>;
-  return { since, months, generatedAt: now.toISOString(), rows };
+  return { since, months, generatedAt: now.toISOString(), rows, local_providers: localProviders(handle) };
 }
 
 /**

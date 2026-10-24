@@ -168,6 +168,40 @@ test('(b) logCall persists nonzero cache values; total_tokens is untouched; getS
   }
 });
 
+test('(b2) getSummary cells keep the four token kinds apart per process × provider × model, and only on request', () => {
+  const base = freshBase('b2');
+  resetEnv();
+  process.env.LLM_PROXY_TOKEN_DB_PATH = path.join(base, 'token-usage.db');
+  try {
+    const handle = initTokenDb();
+    logCall(handle, baseRow({ provider: 'gh-copilot', model: 'claude-sonnet-5', cache_read_tokens: 100, cache_write_tokens: 5 }));
+    logCall(handle, baseRow({ provider: 'gh-copilot', model: 'claude-sonnet-5', cache_read_tokens: 50 }));
+    logCall(handle, baseRow({ provider: 'claude-code-max', model: 'claude-sonnet-5' }));
+
+    // Default payload unchanged: no cells key at all.
+    assert.equal('cells' in getSummary(handle, { hours: 24 }), false, 'cells are opt-in');
+
+    const { cells } = getSummary(handle, { hours: 24, cells: true });
+    const copilot = cells.filter(c => c.provider === 'gh-copilot');
+    const max = cells.filter(c => c.provider === 'claude-code-max');
+    // Same model on two accounts is two cells — they are different money.
+    assert.equal(copilot.length, 1, 'both copilot rows land in one cell (same bucket)');
+    assert.equal(max.length, 1, 'the max row is its own cell');
+    assert.deepEqual(
+      { calls: copilot[0].calls, in: copilot[0].input_tokens, out: copilot[0].output_tokens, cr: copilot[0].cache_read_tokens, cw: copilot[0].cache_write_tokens },
+      { calls: 2, in: 20, out: 40, cr: 150, cw: 5 },
+    );
+    assert.match(copilot[0].hour, /Z$/, 'bucket is a UTC ISO timestamp like the pivots');
+    assert.deepEqual(getSummary(handle, { hours: 24, cells: true }).local_providers, [], 'nothing offloaded yet');
+    logCall(handle, baseRow({ provider: 'gh-copilot', model: 'claude-haiku-5.5', offloaded_from: 'gh-copilot' }));
+    logCall(handle, baseRow({ provider: 'team-qwen', model: 'qwen3.8-27b', offloaded_from: 'gh-copilot' }));
+    assert.deepEqual(getSummary(handle, { hours: 24, cells: true }).local_providers, ['team-qwen'], 'an offload target is own hardware, whatever it is called');
+    handle.db.close();
+  } finally {
+    cleanup(base);
+  }
+});
+
 test('(c) export → fresh DB → hydrate round-trip preserves cache_read=7 / cache_write=9', () => {
   const base = freshBase('c');
   resetEnv();
